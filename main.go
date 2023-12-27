@@ -2,11 +2,10 @@ package main
 
 import (
 	"embed"
-	"inspectadb/src/cmd"
-	"inspectadb/src/driver"
-	"inspectadb/src/driver/mysql"
-	"inspectadb/src/driver/pgsql"
-	"inspectadb/src/util"
+	"github.com/inspectadb/inspectadb/src/cmd"
+	"github.com/inspectadb/inspectadb/src/driver"
+	"github.com/inspectadb/inspectadb/src/driver/mysql"
+	"github.com/inspectadb/inspectadb/src/util"
 	"log"
 	"os"
 )
@@ -18,7 +17,7 @@ func init() {
 	util.StubsFolder = stubsFolder
 
 	driver.Register("mysql", &mysql.MySQLDriver{})
-	driver.Register("pgsql", &pgsql.PGSQLDriver{})
+	driver.Register("maria", &mysql.MySQLDriver{})
 }
 
 func main() {

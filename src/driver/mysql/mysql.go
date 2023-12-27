@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"github.com/go-sql-driver/mysql"
 	_ "github.com/go-sql-driver/mysql"
-	"inspectadb/src/config"
-	"inspectadb/src/db"
-	"inspectadb/src/util"
+	"github.com/inspectadb/inspectadb/src/config"
+	"github.com/inspectadb/inspectadb/src/db"
+	"github.com/inspectadb/inspectadb/src/util"
 	"log"
 	"strings"
 )
@@ -20,6 +20,7 @@ import (
 // TODO: Alternative db
 // TODO: Setup manual rollback i.e. cleanup of all created refs on failure
 // TODO: Fix exclude placeholder
+// TODO: Remove redundancy for already audited and unaudited table (building triggers and functions etc.)
 
 type MySQLDriver struct{}
 
@@ -206,6 +207,14 @@ func (d MySQLDriver) Audit(app config.App) error {
 	}
 
 	for _, table := range tables {
+		createAuditTable := false
+
+		auditTable := ""
+		insertTrigger := formatByStrategies(util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", table, "ins", "trgr", util.UUIDWithoutHyphens()))
+		updateTrigger := formatByStrategies(util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", table, "upd", "trgr", util.UUIDWithoutHyphens()))
+		deleteTrigger := formatByStrategies(util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", table, "del", "trgr", util.UUIDWithoutHyphens()))
+		triggerOptions := []map[string]any{}
+
 		historyRecord := historyRecord{}
 		err := conn.QueryRow(
 			"SELECT `original_table`, `audit_table`, `insert_trigger`, `update_trigger`, `delete_trigger` FROM `"+app.Config.HistoryTable+"` WHERE original_table = ?", table).Scan(
@@ -222,69 +231,8 @@ func (d MySQLDriver) Audit(app config.App) error {
 
 		// hasn't been audited
 		if errors.Is(err, sql.ErrNoRows) {
-			auditTable := formatByStrategies(util.BuildIdentifierName(d.GetIdentifierMaxLength(), app.Config.AuditTablePrefix, table, app.Config.AuditTableSuffix))
-			newColumns, oldColumns := "", ""
-
-			rows, err := conn.Query(`SELECT
-				COLUMN_NAME,
-				COLUMN_TYPE
-			FROM information_schema.COLUMNS
-			WHERE
-				TABLE_SCHEMA = ? AND
-				TABLE_NAME = ?
-			ORDER BY ORDINAL_POSITION ASC;`, app.Config.DB.Schema, table)
-
-			if err != nil {
-				return errors.Join(errors.New("failed to get columns for '"+table+"'"), err)
-			}
-
-			notLast := rows.Next()
-
-			for notLast {
-				var column db.InformationSchemaColumn
-
-				err = rows.Scan(&column.Name, &column.Type)
-
-				if err != nil {
-					return errors.Join(errors.New("failed to scan column information"), err)
-				}
-
-				notLast = rows.Next()
-
-				if notLast {
-					newColumns += fmt.Sprintf("%s.%s, ", "new", d.WrapIdentifier(column.Name))
-					oldColumns += fmt.Sprintf("%s.%s, ", "old", d.WrapIdentifier(column.Name))
-				} else {
-					newColumns += fmt.Sprintf("%s.%s", "new", d.WrapIdentifier(column.Name))
-					oldColumns += fmt.Sprintf("%s.%s", "old", d.WrapIdentifier(column.Name))
-				}
-			}
-
-			insertTrigger := formatByStrategies(util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", table, "insert", util.UUIDWithoutHyphens()))
-			updateTrigger := formatByStrategies(util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", table, "update", util.UUIDWithoutHyphens()))
-			deleteTrigger := formatByStrategies(util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", table, "delete", util.UUIDWithoutHyphens()))
-
-			insertStatement := fmt.Sprintf("INSERT INTO `%s`.`%s` VALUES (NULL, '%s', CURRENT_USER(), NOW(), %s);", app.Config.DB.Schema, auditTable, "INSERT", newColumns)
-			updateStatement := fmt.Sprintf("INSERT INTO `%s`.`%s` VALUES (NULL, '%s', CURRENT_USER(), NOW(), %s);", app.Config.DB.Schema, auditTable, "UPDATE", newColumns)
-			deleteStatement := fmt.Sprintf("INSERT INTO `%s`.`%s` VALUES (NULL, '%s', CURRENT_USER(), NOW(), %s);", app.Config.DB.Schema, auditTable, "DELETE", oldColumns)
-
-			triggerOptions := []map[string]any{
-				{
-					"trigger":   insertTrigger,
-					"action":    "INSERT",
-					"statement": insertStatement,
-				},
-				{
-					"trigger":   updateTrigger,
-					"action":    "UPDATE",
-					"statement": updateStatement,
-				},
-				{
-					"trigger":   deleteTrigger,
-					"action":    "DELETE",
-					"statement": deleteStatement,
-				},
-			}
+			createAuditTable = true
+			auditTable = formatByStrategies(util.BuildIdentifierName(d.GetIdentifierMaxLength(), app.Config.AuditTablePrefix, table, app.Config.AuditTableSuffix))
 
 			SQLStatements = append(SQLStatements, map[string]any{
 				"query": util.ReadStub("mysql-create-audit-table", map[string]string{
@@ -298,6 +246,21 @@ func (d MySQLDriver) Audit(app config.App) error {
 				}),
 			})
 
+			triggerOptions = []map[string]any{
+				{
+					"trigger": insertTrigger,
+					"action":  "INSERT",
+				},
+				{
+					"trigger": updateTrigger,
+					"action":  "UPDATE",
+				},
+				{
+					"trigger": deleteTrigger,
+					"action":  "DELETE",
+				},
+			}
+
 			SQLStatements = append(SQLStatements, map[string]any{
 				"query": fmt.Sprintf("INSERT INTO `%s`.`%s` (`original_table`, `audit_table`, `insert_trigger`, `update_trigger`, `delete_trigger`, `user`) VALUES (?, ?, ?, ?, ?, CURRENT_USER())", app.Config.DB.Schema, app.Config.HistoryTable),
 				"params": []any{
@@ -308,20 +271,10 @@ func (d MySQLDriver) Audit(app config.App) error {
 					deleteTrigger,
 				},
 			})
-
-			for _, triggerOption := range triggerOptions {
-				SQLStatements = append(SQLStatements, map[string]any{
-					"query": util.ReadStub("mysql-create-trigger", map[string]string{
-						"<TRIGGER>":   triggerOption["trigger"].(string),
-						"<ACTION>":    triggerOption["action"].(string),
-						"<SCHEMA>":    app.Config.DB.Schema,
-						"<TABLE>":     table,
-						"<STATEMENT>": triggerOption["statement"].(string),
-					}),
-				})
-			}
 		} else {
 			// table has been audited
+			auditTable = historyRecord.AuditTable
+			createAuditTable = false
 
 			// Params for A: original_table, schema, original_table, schema, audit_table, schema
 			// Params for D: audit_table, schema, original_table, schema, EXCLUDE COLUMNS (x4)
@@ -427,44 +380,6 @@ func (d MySQLDriver) Audit(app config.App) error {
 				hasNext = changedColumnsRows.Next()
 			}
 
-			newColumns, oldColumns := "", ""
-
-			columnRows, err := conn.Query(
-				`SELECT COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION ASC;`,
-				app.Config.DB.Schema,
-				table,
-			)
-
-			if err != nil {
-				return errors.Join(errors.New("failed to get columns for '"+table+"'"), err)
-			}
-
-			notLast := columnRows.Next()
-
-			for notLast {
-				var column db.InformationSchemaColumn
-
-				err = columnRows.Scan(&column.Name, &column.Type)
-
-				if err != nil {
-					return errors.Join(errors.New("failed to scan column information"), err)
-				}
-
-				notLast = columnRows.Next()
-
-				if notLast {
-					newColumns += fmt.Sprintf("%s.%s, ", "new", d.WrapIdentifier(column.Name))
-					oldColumns += fmt.Sprintf("%s.%s, ", "old", d.WrapIdentifier(column.Name))
-				} else {
-					newColumns += fmt.Sprintf("%s.%s", "new", d.WrapIdentifier(column.Name))
-					oldColumns += fmt.Sprintf("%s.%s", "old", d.WrapIdentifier(column.Name))
-				}
-			}
-
-			insertStatement := fmt.Sprintf("INSERT INTO `%s`.`%s` VALUES (NULL, '%s', CURRENT_USER(), NOW(), %s);", app.Config.DB.Schema, historyRecord.AuditTable, "INSERT", newColumns)
-			updateStatement := fmt.Sprintf("INSERT INTO `%s`.`%s` VALUES (NULL, '%s', CURRENT_USER(), NOW(), %s);", app.Config.DB.Schema, historyRecord.AuditTable, "UPDATE", newColumns)
-			deleteStatement := fmt.Sprintf("INSERT INTO `%s`.`%s` VALUES (NULL, '%s', CURRENT_USER(), NOW(), %s);", app.Config.DB.Schema, historyRecord.AuditTable, "DELETE", oldColumns)
-
 			SQLStatements = append(SQLStatements, map[string]any{
 				"query": fmt.Sprintf("UPDATE `%s`.`%s` SET `performed_at` = NOW() WHERE `original_table` = ? AND `audit_table` = ?", app.Config.DB.Schema, app.Config.HistoryTable),
 				"params": []any{
@@ -473,42 +388,90 @@ func (d MySQLDriver) Audit(app config.App) error {
 				},
 			})
 
-			triggerOptions := []map[string]any{
+			triggerOptions = []map[string]any{
 				{
-					"trigger":   historyRecord.InsertTrigger,
-					"action":    "INSERT",
-					"statement": insertStatement,
+					"trigger": historyRecord.InsertTrigger,
+					"action":  "INSERT",
 				},
 				{
-					"trigger":   historyRecord.UpdateTrigger,
-					"action":    "UPDATE",
-					"statement": updateStatement,
+					"trigger": historyRecord.UpdateTrigger,
+					"action":  "UPDATE",
 				},
 				{
-					"trigger":   historyRecord.DeleteTrigger,
-					"action":    "DELETE",
-					"statement": deleteStatement,
+					"trigger": historyRecord.DeleteTrigger,
+					"action":  "DELETE",
 				},
 			}
+		}
 
-			for _, triggerOption := range triggerOptions {
+		columns := ""
+
+		rows, err := conn.Query(`SELECT
+				COLUMN_NAME,
+				COLUMN_TYPE
+			FROM information_schema.COLUMNS
+			WHERE
+				TABLE_SCHEMA = ? AND
+				TABLE_NAME = ?
+			ORDER BY ORDINAL_POSITION ASC;`, app.Config.DB.Schema, table)
+
+		if err != nil {
+			return errors.Join(errors.New("failed to get columns for '"+table+"'"), err)
+		}
+
+		notLast := rows.Next()
+
+		for notLast {
+			var column db.InformationSchemaColumn
+
+			err = rows.Scan(&column.Name, &column.Type)
+
+			if err != nil {
+				return errors.Join(errors.New("failed to scan column information"), err)
+			}
+
+			notLast = rows.Next()
+
+			if notLast {
+				columns += fmt.Sprintf("%s.%s, ", "<KEYWORD>", d.WrapIdentifier(column.Name))
+			} else {
+				columns += fmt.Sprintf("%s.%s", "<KEYWORD>", d.WrapIdentifier(column.Name))
+			}
+		}
+
+		insertStatement := fmt.Sprintf("INSERT INTO `%s`.`%s` VALUES (NULL, '%s', CURRENT_USER(), NOW(), %s);", app.Config.DB.Schema, auditTable, "INSERT", strings.ReplaceAll(columns, "<KEYWORD>", "new"))
+		updateStatement := fmt.Sprintf("INSERT INTO `%s`.`%s` VALUES (NULL, '%s', CURRENT_USER(), NOW(), %s);", app.Config.DB.Schema, auditTable, "UPDATE", strings.ReplaceAll(columns, "<KEYWORD>", "new"))
+		deleteStatement := fmt.Sprintf("INSERT INTO `%s`.`%s` VALUES (NULL, '%s', CURRENT_USER(), NOW(), %s);", app.Config.DB.Schema, auditTable, "DELETE", strings.ReplaceAll(columns, "<KEYWORD>", "old"))
+
+		for _, triggerOption := range triggerOptions {
+			if !createAuditTable {
 				SQLStatements = append(SQLStatements, map[string]any{
 					"query": util.ReadStub("mysql-drop-trigger", map[string]string{
 						"<SCHEMA>":  app.Config.DB.Schema,
 						"<TRIGGER>": triggerOption["trigger"].(string),
 					}),
 				})
-
-				SQLStatements = append(SQLStatements, map[string]any{
-					"query": util.ReadStub("mysql-create-trigger", map[string]string{
-						"<TRIGGER>":   triggerOption["trigger"].(string),
-						"<ACTION>":    triggerOption["action"].(string),
-						"<SCHEMA>":    app.Config.DB.Schema,
-						"<TABLE>":     table,
-						"<STATEMENT>": triggerOption["statement"].(string),
-					}),
-				})
 			}
+
+			trigger, action, statement := triggerOption["trigger"].(string), triggerOption["action"].(string), ""
+
+			if action == "INSERT" {
+				statement = insertStatement
+			} else if action == "UPDATE" {
+				statement = updateStatement
+			} else if action == "DELETE" {
+				statement = deleteStatement
+			}
+
+			SQLStatements = append(SQLStatements, map[string]any{
+				"query": util.ReadStub("mysql-create-trigger", map[string]string{
+					"<TRIGGER>":   trigger,
+					"<ACTION>":    action,
+					"<SCHEMA>":    app.Config.DB.Schema,
+					"<TABLE>":     table,
+					"<STATEMENT>": statement,
+				}),
+			})
 		}
 	}
 

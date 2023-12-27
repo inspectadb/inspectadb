@@ -1,4 +1,4 @@
-module inspectadb
+module github.com/inspectadb/inspectadb
 
 go 1.21
 

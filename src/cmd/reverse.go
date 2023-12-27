@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"errors"
+	"github.com/inspectadb/inspectadb/src/config"
+	"github.com/inspectadb/inspectadb/src/driver"
 	"github.com/spf13/cobra"
-	"inspectadb/src/config"
-	"inspectadb/src/driver"
 )
 
 var clean bool
