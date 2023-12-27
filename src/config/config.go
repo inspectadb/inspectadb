@@ -27,6 +27,7 @@ type Config struct {
 	NamingStrategy   string
 	Exclude          []string
 	Telemetry        bool
+	LicenseKey       string
 }
 
 type App struct {
@@ -96,6 +97,7 @@ func Load(path string) (App, error) {
 	viper.SetDefault("naming_strategy", "")
 	viper.SetDefault("exclude", []string{})
 	viper.SetDefault("telemetry", true)
+	viper.SetDefault("license_key", "")
 	viper.AutomaticEnv()
 
 	if path != "" {
@@ -132,6 +134,7 @@ func Load(path string) (App, error) {
 			NamingStrategy:   viper.GetString("naming_strategy"),
 			Exclude:          exclude,
 			Telemetry:        viper.GetBool("telemetry"),
+			LicenseKey:       viper.GetString("license_key"),
 		},
 	}, nil
 }
