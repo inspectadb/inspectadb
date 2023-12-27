@@ -2,10 +2,10 @@ package main
 
 import (
 	"embed"
-	"github.com/inspectadb/inspectadb/src/cmd"
-	"github.com/inspectadb/inspectadb/src/driver"
-	"github.com/inspectadb/inspectadb/src/driver/mysql"
-	"github.com/inspectadb/inspectadb/src/util"
+	"github.com/inspectadb/inspectadb/cmd"
+	"github.com/inspectadb/inspectadb/driver"
+	"github.com/inspectadb/inspectadb/driver/mysql"
+	"github.com/inspectadb/inspectadb/util"
 	"log"
 	"os"
 )

@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"errors"
-	"github.com/inspectadb/inspectadb/src/config"
-	"github.com/inspectadb/inspectadb/src/driver"
+	"github.com/inspectadb/inspectadb/config"
+	"github.com/inspectadb/inspectadb/driver"
 	"github.com/spf13/cobra"
 )
 

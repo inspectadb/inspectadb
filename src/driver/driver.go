@@ -2,7 +2,7 @@ package driver
 
 import (
 	"database/sql"
-	"github.com/inspectadb/inspectadb/src/config"
+	"github.com/inspectadb/inspectadb/config"
 	"log"
 )
 
