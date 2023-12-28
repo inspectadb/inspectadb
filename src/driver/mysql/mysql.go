@@ -8,7 +8,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/inspectadb/inspectadb/src/config"
 	"github.com/inspectadb/inspectadb/src/db"
-	"github.com/inspectadb/inspectadb/util"
+	"github.com/inspectadb/inspectadb/src/util"
 	"log"
 	"strings"
 )
