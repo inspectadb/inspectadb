@@ -35,13 +35,12 @@ type App struct {
 }
 
 func parseDSN(dsn string) (DBConfig, error) {
-
-	if !strings.HasPrefix(dsn, "mysql://") && !strings.HasPrefix(dsn, "pgsql://") {
+	if !strings.HasPrefix(dsn, "mysql://") && !strings.HasPrefix(dsn, "maria://") {
 		return DBConfig{}, errors.New("failed to load config: unknown driver used in 'dsn'")
 	}
 
 	driver := dsn[:strings.Index(dsn, "://")]
-	dsn = strings.TrimLeft(dsn, driver+"://")
+	dsn = strings.TrimPrefix(dsn, driver+"://")
 
 	userAndPassword := strings.Split(dsn[:strings.Index(dsn, "@")], ":")
 	user := userAndPassword[0]
