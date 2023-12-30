@@ -5,7 +5,7 @@ testdata/
 docker/
 
 *.exe
-
 *.test
-
 *.out
+
+README-DEV.md
