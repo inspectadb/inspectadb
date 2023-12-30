@@ -62,6 +62,10 @@ func (d MySQLDriver) GetServerVersion(dbConfig config.DBConfig) (string, error) 
 	return version, nil
 }
 
+func (d MySQLDriver) VerifyLicense(app config.App) bool {
+	return true
+}
+
 func (d MySQLDriver) DebugQuery(SQL string, params []any) {
 	log.Println(fmt.Sprintf(strings.ReplaceAll(SQL, "?", `"%v"`), params...))
 }

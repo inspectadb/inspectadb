@@ -8,6 +8,7 @@ import (
 
 type (
 	Driver interface {
+		VerifyLicense(app config.App) bool
 		WrapIdentifier(identifier string) string
 		GetIdentifierMaxLength() int
 		GetServerVersion(dbConfig config.DBConfig) (string, error)

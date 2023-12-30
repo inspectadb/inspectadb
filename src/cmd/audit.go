@@ -21,6 +21,11 @@ var auditCmd = &cobra.Command{
 		}
 
 		d := driver.Get(app.Config.DB.Driver)
+
+		if !d.VerifyLicense(app) {
+			return errors.New("failed to verify license, cannot proceed")
+		}
+
 		profile := profiler.New()
 		err = d.Audit(app)
 

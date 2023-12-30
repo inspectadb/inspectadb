@@ -30,20 +30,15 @@ func (s signal) Send() {
 		}
 	}()
 
+	pl, _ := json.Marshal(s)
 	client := http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
-	req, err := client.Post(Endpoint, "application/json", bytes.NewBufferString(s.ToJSON()))
+	req, err := client.Post(Endpoint, "application/json", bytes.NewBufferString(string(pl)))
 
 	if err != nil {
 		log.Printf("failed to send telemetry request. this will not stop execution. You can help us out by reporting this as an issue. %s", err)
 	}
 
 	defer req.Body.Close()
-}
-
-func (s signal) ToJSON() string {
-	b, _ := json.Marshal(s)
-
-	return string(b)
 }
 
 func NewSignal(command string, driver string, serverVersion string, profile map[string]any) *signal {
