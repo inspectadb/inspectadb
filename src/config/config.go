@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+const AppVersion = "0.0.1"
+
 type DBConfig struct {
 	Driver   string
 	User     string

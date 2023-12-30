@@ -1,67 +1,89 @@
 package telemetry
 
-//import (
-//	"bytes"
-//	"crypto/tls"
-//	"encoding/json"
-//	"log"
-//	"net/http"
-//	"os"
-//	"runtime"
-//)
-//
-//const TELEMETRY_ENDPOINT = "https://telemetry.inspectadb.org"
-//
-//type signal struct {
-//	Command       string         `json:"command"`
-//	Driver        string         `json:"driver"`
-//	AppVersion    string         `json:"appVersion"`
-//	ServerVersion string         `json:"serverVersion"`
-//	OS            string         `json:"os"`
-//	CI            bool           `json:"ci"`
-//	Docker        bool           `json:"docker"`
-//	Profile       map[string]any `json:"profile"`
-//}
-//
-//func (s signal) Send() {
-//	defer func() {
-//		if recover() != nil {
-//		}
-//	}()
-//
-//	client := http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
-//
-//	req, err := client.Post(TELEMETRY_ENDPOINT, "application/json", bytes.NewBufferString(s.ToJSON()))
-//
-//	if err != nil {
-//		log.Printf("failed to send telemetry request. this will not stop execution. You can help us out by reporting this as an issue. %s", err)
-//	}
-//
-//	defer req.Body.Close()
-//}
-//
-//func (s signal) ToJSON() string {
-//	b, _ := json.Marshal(s)
-//
-//	return string(b)
-//}
-//
-//func NewSignal(command string, driver string, serverVersion string, profile map[string]any) *signal {
-//	isCI, ciExists := os.LookupEnv("CI")
-//	isDocker, dockerExists := os.LookupEnv("IS_DOCKER")
-//
-//	if !ciExists {
-//		isCI = false
-//	}
-//
-//	return &signal{
-//		Command:       command,
-//		Driver:        driver,
-//		AppVersion:    "",
-//		ServerVersion: serverVersion,
-//		OS:            runtime.GOOS,
-//		CI:            ciExists,
-//		Docker:        dockerExists,
-//		Profile:       profile,
-//	}
-//}
+import (
+	"bytes"
+	"crypto/tls"
+	"encoding/json"
+	"github.com/inspectadb/inspectadb/src/config"
+	"log"
+	"net/http"
+	"os"
+	"runtime"
+)
+
+const Endpoint = "https://telemetry.auditdb.org"
+
+type signal struct {
+	Command       string         `json:"command"`
+	Driver        string         `json:"driver"`
+	AppVersion    string         `json:"appVersion"`
+	ServerVersion string         `json:"serverVersion"`
+	OS            string         `json:"os"`
+	CI            bool           `json:"ci"`
+	Docker        bool           `json:"docker"`
+	Profile       map[string]any `json:"profile"`
+}
+
+func (s signal) Send() {
+	defer func() {
+		if recover() != nil {
+		}
+	}()
+
+	client := http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
+
+	log.Println(s.ToJSON())
+
+	req, err := client.Post(Endpoint, "application/json", bytes.NewBufferString(s.ToJSON()))
+
+	if err != nil {
+		log.Printf("failed to send telemetry request. this will not stop execution. You can help us out by reporting this as an issue. %s", err)
+	}
+
+	defer req.Body.Close()
+}
+
+func (s signal) ToJSON() string {
+	b, _ := json.Marshal(s)
+
+	return string(b)
+}
+
+func NewSignal(command string, driver string, serverVersion string, profile map[string]any) *signal {
+	return &signal{
+		Command:       command,
+		Driver:        driver,
+		AppVersion:    config.AppVersion,
+		ServerVersion: serverVersion,
+		OS:            runtime.GOOS,
+		CI:            isRunningInCI(),
+		Docker:        isRunningInDocker(),
+		Profile:       profile,
+	}
+}
+
+// isRunningInCI
+// GitHub, GitLab, Travis, CircleCI => CI env var
+// Jenkins => JENKINS_HOME
+// Azure DevOps => BUILD_REASON = IndividualCI ||  BatchedCI
+func isRunningInCI() bool {
+	ci := false
+
+	if val, exists := os.LookupEnv("CI"); exists && val == "true" {
+		ci = true
+	} else if val, exists = os.LookupEnv("JENKINS_HOME"); exists && val != "" {
+		ci = true
+	} else if val, exists = os.LookupEnv("BUILD_REASON"); exists && (val == "IndividualCI" || val == "BatchedCI") {
+		ci = true
+	}
+
+	return ci
+}
+
+// isRunningInDocker
+// Check if they're using our docker image
+func isRunningInDocker() bool {
+	_, isDocker := os.LookupEnv("IS_DOCKER")
+
+	return isDocker
+}

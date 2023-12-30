@@ -4,6 +4,8 @@ import (
 	"errors"
 	"github.com/inspectadb/inspectadb/src/config"
 	"github.com/inspectadb/inspectadb/src/driver"
+	"github.com/inspectadb/inspectadb/src/profiler"
+	"github.com/inspectadb/inspectadb/src/telemetry"
 	"github.com/spf13/cobra"
 )
 
@@ -19,11 +21,27 @@ var auditCmd = &cobra.Command{
 		}
 
 		d := driver.Get(app.Config.DB.Driver)
-
+		profile := profiler.New()
 		err = d.Audit(app)
 
 		if err != nil {
 			return err
+		}
+
+		profile.End()
+
+		if app.Config.Telemetry {
+			version, _ := d.GetServerVersion(app.Config.DB)
+
+			telemetry.NewSignal(
+				"audit",
+				app.Config.DB.Driver,
+				version,
+				map[string]any{
+					"start":   profile.StartedAt.Unix(),
+					"elapsed": profile.Delta.Nanoseconds(),
+				},
+			).Send()
 		}
 
 		return nil

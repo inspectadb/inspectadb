@@ -44,6 +44,24 @@ func (d MySQLDriver) WrapIdentifier(identifier string) string {
 	return "`" + identifier + "`"
 }
 
+func (d MySQLDriver) GetServerVersion(dbConfig config.DBConfig) (string, error) {
+	conn, err := d.Connect(dbConfig)
+
+	if err != nil {
+		return "", err
+	}
+
+	var version string
+
+	err = conn.QueryRow("SELECT @@version;").Scan(&version)
+
+	if err != nil {
+		return "", err
+	}
+
+	return version, nil
+}
+
 func (d MySQLDriver) DebugQuery(SQL string, params []any) {
 	log.Println(fmt.Sprintf(strings.ReplaceAll(SQL, "?", `"%v"`), params...))
 }

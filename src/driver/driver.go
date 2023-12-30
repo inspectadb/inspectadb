@@ -10,6 +10,7 @@ type (
 	Driver interface {
 		WrapIdentifier(identifier string) string
 		GetIdentifierMaxLength() int
+		GetServerVersion(dbConfig config.DBConfig) (string, error)
 		DebugQuery(SQL string, params []any)
 		BuildPlaceholders(totalNoOfPlaceholders int, startFrom int) string
 		// GetColumnsToSyncSQL

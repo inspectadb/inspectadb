@@ -4,6 +4,8 @@ import (
 	"errors"
 	"github.com/inspectadb/inspectadb/src/config"
 	"github.com/inspectadb/inspectadb/src/driver"
+	"github.com/inspectadb/inspectadb/src/profiler"
+	"github.com/inspectadb/inspectadb/src/telemetry"
 	"github.com/spf13/cobra"
 )
 
@@ -20,11 +22,27 @@ var reverseCmd = &cobra.Command{
 		}
 
 		d := driver.Get(app.Config.DB.Driver)
-
+		profile := profiler.New()
 		err = d.Reverse(app, clean)
 
 		if err != nil {
 			return err
+		}
+
+		profile.End()
+
+		if app.Config.Telemetry {
+			version, _ := d.GetServerVersion(app.Config.DB)
+
+			telemetry.NewSignal(
+				"reverse",
+				app.Config.DB.Driver,
+				version,
+				map[string]any{
+					"start":   profile.StartedAt.Unix(),
+					"elapsed": profile.Delta.Nanoseconds(),
+				},
+			).Send()
 		}
 
 		return nil
