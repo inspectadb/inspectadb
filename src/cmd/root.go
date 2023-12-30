@@ -8,7 +8,7 @@ var configPath string
 
 var rootCmd = &cobra.Command{
 	Use:   "inspecta",
-	Short: "Simple, automated record auditing",
+	Short: "Inspecta automates the setup of change data capture through audit tables seamlessly.",
 }
 
 func init() {

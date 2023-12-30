@@ -13,7 +13,7 @@ var clean bool
 
 var reverseCmd = &cobra.Command{
 	Use:   "reverse",
-	Short: "Reverse changes made by Inspecta. This will remove audit tables (and other objects listed in the history table)",
+	Short: "Reverse changes made by Inspecta.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		app, err := config.Load(configPath)
 

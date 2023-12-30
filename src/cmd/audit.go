@@ -11,8 +11,7 @@ import (
 
 var auditCmd = &cobra.Command{
 	Use:   "audit",
-	Short: "Setup the record auditing.",
-	Long:  "Setup the record auditing. This will create new tables (and other objects such as triggers, functions etc. as needed)",
+	Short: "Setup change data capture.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		app, err := config.Load(configPath)
 
