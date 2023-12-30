@@ -31,9 +31,6 @@ func (s signal) Send() {
 	}()
 
 	client := http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
-
-	log.Println(s.ToJSON())
-
 	req, err := client.Post(Endpoint, "application/json", bytes.NewBufferString(s.ToJSON()))
 
 	if err != nil {
@@ -83,7 +80,7 @@ func isRunningInCI() bool {
 // isRunningInDocker
 // Check if they're using our docker image
 func isRunningInDocker() bool {
-	_, isDocker := os.LookupEnv("IS_DOCKER")
+	val, isDocker := os.LookupEnv("IS_DOCKER")
 
-	return isDocker
+	return isDocker && val == "true"
 }
