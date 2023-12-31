@@ -21,7 +21,12 @@ var reverseCmd = &cobra.Command{
 			return errors.Join(errors.New("failed to load config"), err)
 		}
 
-		d := driver.Get(app.Config.DB.Driver)
+		d, err := driver.Get(app.Config.DB.Driver)
+
+		if err != nil {
+			return err
+		}
+
 		profile := profiler.New()
 		err = d.Reverse(app, clean)
 

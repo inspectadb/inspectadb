@@ -2,6 +2,7 @@ package driver
 
 import (
 	"database/sql"
+	"errors"
 	"github.com/inspectadb/inspectadb/src/config"
 	"log"
 )
@@ -40,13 +41,13 @@ func Register(name string, driver Driver) {
 	drivers[name] = driver
 }
 
-func Get(name string) Driver {
+func Get(name string) (Driver, error) {
 	d, ok := drivers[name]
 
 	// If the key exists
 	if !ok {
-		log.Fatalf("unknown driver '%s'", name)
+		return nil, errors.New("unknown driver '" + name + "'")
 	}
 
-	return d
+	return d, nil
 }

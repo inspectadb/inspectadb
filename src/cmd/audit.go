@@ -19,7 +19,11 @@ var auditCmd = &cobra.Command{
 			return errors.Join(errors.New("failed to load config"), err)
 		}
 
-		d := driver.Get(app.Config.DB.Driver)
+		d, err := driver.Get(app.Config.DB.Driver)
+
+		if err != nil {
+			return err
+		}
 
 		if !d.VerifyLicense(app) {
 			return errors.New("failed to verify license, cannot proceed")

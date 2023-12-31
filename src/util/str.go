@@ -1,7 +1,6 @@
 package util
 
 import (
-	"fmt"
 	"github.com/iancoleman/strcase"
 	"strings"
 )
@@ -20,16 +19,6 @@ func FormatByStrategies(v string, namingStrategy string, caseStrategy string) st
 	} else {
 		return strings.ToLower(v)
 	}
-}
-
-func BuildAuditTableName(prefix string, table string, suffix string, maxLength int) string {
-	name := fmt.Sprintf("%s %s %s", prefix, table, suffix)
-
-	if len(name) > maxLength {
-		return name[:maxLength]
-	}
-
-	return name
 }
 
 func BuildIdentifierName(maxLength int, ids ...string) string {

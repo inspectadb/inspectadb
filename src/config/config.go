@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+// TODO: Remove driver checking from here
+
 const AppVersion = "0.0.1"
 
 type DBConfig struct {
@@ -37,18 +39,12 @@ type App struct {
 }
 
 func parseDSN(dsn string) (DBConfig, error) {
-	if !strings.HasPrefix(dsn, "mysql://") && !strings.HasPrefix(dsn, "maria://") {
-		return DBConfig{}, errors.New("failed to load config: unknown driver used in 'dsn'")
-	}
-
 	driver := dsn[:strings.Index(dsn, "://")]
 	dsn = strings.TrimPrefix(dsn, driver+"://")
-
 	userAndPassword := strings.Split(dsn[:strings.Index(dsn, "@")], ":")
 	user := userAndPassword[0]
 	password := userAndPassword[1]
 	dsn = dsn[strings.Index(dsn, "@")+1:]
-
 	hostAndPort := strings.Split(dsn[:strings.Index(dsn, "/")], ":")
 	host := hostAndPort[0]
 	port, err := strconv.Atoi(hostAndPort[1])
