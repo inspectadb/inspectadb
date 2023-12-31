@@ -17,7 +17,7 @@ func init() {
 	util.StubsFolder = stubsFolder
 
 	driver.Register("mysql", &mysql.MySQLDriver{})
-	driver.Register("maria", &mysql.MySQLDriver{})
+	driver.Register("mariadb", &mysql.MySQLDriver{})
 }
 
 func main() {
