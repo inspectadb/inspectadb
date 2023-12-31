@@ -11,9 +11,9 @@ import (
 
 var clean bool
 
-var reverseCmd = &cobra.Command{
-	Use:   "reverse",
-	Short: "Reverse changes made by Inspecta.",
+var purgeCmd = &cobra.Command{
+	Use:   "purge",
+	Short: "Purge all changes made by Inspecta (removes history table, audit tables, triggers etc.).",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		app, err := config.Load(configPath)
 
@@ -28,7 +28,7 @@ var reverseCmd = &cobra.Command{
 		}
 
 		profile := profiler.New()
-		err = d.Reverse(app, clean)
+		err = d.Purge(app, clean)
 
 		if err != nil {
 			return err
@@ -54,6 +54,4 @@ var reverseCmd = &cobra.Command{
 	},
 }
 
-func init() {
-	reverseCmd.Flags().BoolVar(&clean, "clean", false, "Removes the history (metadata) table")
-}
+func init() {}

@@ -25,7 +25,7 @@ type (
 		GetColumnsToSyncSQL() string
 		Connect(dbConfig config.DBConfig) (*sql.DB, error)
 		Audit(app config.App) error
-		Reverse(app config.App, clean bool) error
+		Purge(app config.App, clean bool) error
 	}
 )
 

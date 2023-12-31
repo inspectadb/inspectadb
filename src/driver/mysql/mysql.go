@@ -519,7 +519,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 	return nil
 }
 
-func (d MySQLDriver) Reverse(app config.App, clean bool) error {
+func (d MySQLDriver) Purge(app config.App, clean bool) error {
 	SQLStatements := []map[string]any{
 		{
 			"query": "SET SESSION sql_mode='';",
@@ -555,7 +555,7 @@ func (d MySQLDriver) Reverse(app config.App, clean bool) error {
 		historyRecord := historyRecord{}
 		historyRecord.Schema = app.Config.DB.Schema
 
-		rows.Scan(&historyRecord.OriginalTable, &historyRecord.AuditTable, &historyRecord.InsertTrigger, &historyRecord.UpdateTrigger, &historyRecord.DeleteTrigger)
+		_ = rows.Scan(&historyRecord.OriginalTable, &historyRecord.AuditTable, &historyRecord.InsertTrigger, &historyRecord.UpdateTrigger, &historyRecord.DeleteTrigger)
 
 		// drop audit table
 		SQLStatements = append(SQLStatements, map[string]any{
@@ -588,25 +588,15 @@ func (d MySQLDriver) Reverse(app config.App, clean bool) error {
 				"<TRIGGER>": historyRecord.DeleteTrigger,
 			}),
 		})
-
-		// remove respective record from history table
-		if !clean {
-			SQLStatements = append(SQLStatements, map[string]any{
-				"query":  fmt.Sprintf("DELETE FROM %s.%s WHERE original_table = ? AND audit_table = ?", app.Config.DB.Schema, app.Config.HistoryTable),
-				"params": []any{historyRecord.OriginalTable, historyRecord.AuditTable},
-			})
-		}
 	}
 
-	// clean = remove entire history table
-	if clean {
-		SQLStatements = append(SQLStatements, map[string]any{
-			"query": util.ReadStub("mysql-drop-table", map[string]string{
-				"<SCHEMA>": app.Config.DB.Schema,
-				"<TABLE>":  app.Config.HistoryTable,
-			}),
-		})
-	}
+	// remove history table
+	SQLStatements = append(SQLStatements, map[string]any{
+		"query": util.ReadStub("mysql-drop-table", map[string]string{
+			"<SCHEMA>": app.Config.DB.Schema,
+			"<TABLE>":  app.Config.HistoryTable,
+		}),
+	})
 
 	db.WithTransaction(conn, func(tx *sql.Tx) error {
 		for _, SQLStatementSync := range SQLStatements {

@@ -13,11 +13,11 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(auditCmd)
-	rootCmd.AddCommand(reverseCmd)
+	rootCmd.AddCommand(purgeCmd)
 	rootCmd.AddCommand(versionCmd)
 
 	auditCmd.Flags().StringVar(&configPath, "config", "", "Path to config file")
-	reverseCmd.Flags().StringVar(&configPath, "config", "", "Path to config file")
+	purgeCmd.Flags().StringVar(&configPath, "config", "", "Path to config file")
 }
 
 func Execute() error {
