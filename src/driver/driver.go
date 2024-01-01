@@ -18,7 +18,7 @@ type (
 		// GetColumnsToSyncSQL
 		// Get columns that need to be:
 		// 	- added
-		// 	- modified
+		// 	- modified - positioning or data types
 		// 	- deleted
 		// between the original and audit table
 		// excluding base audit columns

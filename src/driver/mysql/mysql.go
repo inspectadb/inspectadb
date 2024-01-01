@@ -65,7 +65,7 @@ func (d MySQLDriver) DebugQuery(SQL string, params []any) {
 // GetColumnsToSyncSQL
 // Params for A: trigger_table, schema, trigger_table, schema, audit_table, schema
 // Params for D: audit_table, schema, trigger_table, schema, change_id, change_action, change_user, changed_at
-// Params for M: trigger_table, schema, trigger_table, audit_table, schema, schema
+// Params for M: trigger_table, schema, trigger_table, schema, change_table, schema
 func (d MySQLDriver) GetColumnsToSyncSQL() string {
 	return `SELECT 
 				'ADD' AS ACTION,
@@ -134,8 +134,8 @@ func (d MySQLDriver) GetColumnsToSyncSQL() string {
 				information_schema.COLUMNS B
 			ON
 				A.TABLE_NAME = ? AND 
+			    A.TABLE_SCHEMA = ? AND
 			    B.TABLE_NAME = ? AND 
-			    A.TABLE_SCHEMA = ? AND 
 			    B.TABLE_SCHEMA = ? AND 
 			    A.COLUMN_NAME = B.COLUMN_NAME AND 
 				(
@@ -319,8 +319,8 @@ func (d MySQLDriver) Audit(app config.App) error {
 				historyRecord.TriggerTable,
 				app.Config.DB.Schema,
 				historyRecord.TriggerTable,
-				historyRecord.ChangeTable,
 				app.Config.DB.Schema,
+				historyRecord.ChangeTable,
 				app.Config.DB.Schema,
 			)
 
