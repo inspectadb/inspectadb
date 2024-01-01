@@ -7,8 +7,6 @@ import (
 	"strings"
 )
 
-// TODO: Remove driver checking from here
-
 const AppVersion = "0.0.1"
 
 type DBConfig struct {
@@ -23,15 +21,13 @@ type DBConfig struct {
 }
 
 type Config struct {
-	DB               DBConfig
-	HistoryTable     string
-	AuditTablePrefix string
-	AuditTableSuffix string
-	CaseStrategy     string
-	NamingStrategy   string
-	Exclude          []string
-	Telemetry        bool
-	LicenseKey       string
+	DB                DBConfig
+	HistoryTable      string
+	ChangeTablePrefix string
+	ChangeTableSuffix string
+	Exclude           []string
+	Telemetry         bool
+	LicenseKey        string
 }
 
 type App struct {
@@ -88,10 +84,8 @@ func Load(path string) (App, error) {
 	viper.SetEnvPrefix("INSPECTA")
 	viper.SetConfigType("env")
 	viper.SetDefault("history_table", "inspecta_history")
-	viper.SetDefault("audit_table_prefix", "")
-	viper.SetDefault("audit_table_suffix", "audit")
-	viper.SetDefault("case_strategy", "lower")
-	viper.SetDefault("naming_strategy", "")
+	viper.SetDefault("change_table_prefix", "")
+	viper.SetDefault("change_table_suffix", "audit")
 	viper.SetDefault("exclude", []string{})
 	viper.SetDefault("telemetry", true)
 	viper.SetDefault("license_key", "")
@@ -123,15 +117,13 @@ func Load(path string) (App, error) {
 
 	return App{
 		Config{
-			DB:               dbConfig,
-			HistoryTable:     viper.GetString("history_table"),
-			AuditTablePrefix: viper.GetString("audit_table_prefix"),
-			AuditTableSuffix: viper.GetString("audit_table_suffix"),
-			CaseStrategy:     viper.GetString("case_strategy"),
-			NamingStrategy:   viper.GetString("naming_strategy"),
-			Exclude:          exclude,
-			Telemetry:        viper.GetBool("telemetry"),
-			LicenseKey:       viper.GetString("license_key"),
+			DB:                dbConfig,
+			HistoryTable:      viper.GetString("history_table"),
+			ChangeTablePrefix: viper.GetString("change_table_prefix"),
+			ChangeTableSuffix: viper.GetString("change_table_suffix"),
+			Exclude:           exclude,
+			Telemetry:         viper.GetBool("telemetry"),
+			LicenseKey:        viper.GetString("license_key"),
 		},
 	}, nil
 }

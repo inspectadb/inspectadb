@@ -12,14 +12,7 @@ import (
 	"strings"
 )
 
-// Notes:
-// https://dev.mysql.com/doc/refman/5.7/en/cannot-roll-back.html - DDL statements cannot be rolled back
-
 // TODO: Columns hardcoded in queries and other places need to be dynamic
-// TODO: Alternative db
-// TODO: Setup manual rollback i.e. cleanup of all created refs on failure
-// TODO: Fix exclude placeholder
-// TODO: Remove redundancy for already audited and unaudited table (building triggers and functions etc.)
 
 type MySQLDriver struct{}
 
@@ -190,10 +183,6 @@ func (d MySQLDriver) Audit(app config.App) error {
 		},
 	}
 
-	formatByStrategies := func(v string) string {
-		return util.FormatByStrategies(v, app.Config.NamingStrategy, app.Config.CaseStrategy)
-	}
-
 	conn, err := d.Connect(app.Config.DB)
 
 	if err != nil {
@@ -231,9 +220,9 @@ func (d MySQLDriver) Audit(app config.App) error {
 		createAuditTable := false
 
 		auditTable := ""
-		insertTrigger := formatByStrategies(util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", table, "ins", "trgr", util.UUIDWithoutHyphens()))
-		updateTrigger := formatByStrategies(util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", table, "upd", "trgr", util.UUIDWithoutHyphens()))
-		deleteTrigger := formatByStrategies(util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", table, "del", "trgr", util.UUIDWithoutHyphens()))
+		insertTrigger := util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", table, "ins", "trgr", util.UUIDWithoutHyphens())
+		updateTrigger := util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", table, "upd", "trgr", util.UUIDWithoutHyphens())
+		deleteTrigger := util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", table, "del", "trgr", util.UUIDWithoutHyphens())
 		triggerOptions := []map[string]any{}
 
 		historyRecord := historyRecord{}
@@ -253,7 +242,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 		// hasn't been audited
 		if errors.Is(err, sql.ErrNoRows) {
 			createAuditTable = true
-			auditTable = formatByStrategies(util.BuildIdentifierName(d.GetIdentifierMaxLength(), app.Config.AuditTablePrefix, table, app.Config.AuditTableSuffix))
+			auditTable = util.BuildIdentifierName(d.GetIdentifierMaxLength(), app.Config.ChangeTablePrefix, table, app.Config.ChangeTableSuffix)
 
 			SQLStatements = append(SQLStatements, map[string]any{
 				"query": util.ReadStub("mysql-create-audit-table", map[string]string{
