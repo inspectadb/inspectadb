@@ -7,6 +7,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/inspectadb/inspectadb/src/config"
 	"github.com/inspectadb/inspectadb/src/db"
+	"github.com/inspectadb/inspectadb/src/stub"
 	"github.com/inspectadb/inspectadb/src/util"
 	"log"
 	"strings"
@@ -194,7 +195,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 		return err
 	}
 
-	historyTableSQL := util.ReadStub("mysql-create-history-table", map[string]string{
+	historyTableSQL := stub.Read("mysql-create-history-table", map[string]string{
 		"<SCHEMA>": app.Config.DB.Schema,
 		"<TABLE>":  app.Config.HistoryTable,
 	})
@@ -249,7 +250,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 			changeTable = util.BuildIdentifierName(d.GetIdentifierMaxLength(), app.Config.ChangeTablePrefix, triggerTable, app.Config.ChangeTableSuffix)
 
 			SQLStatements = append(SQLStatements, map[string]any{
-				"query": util.ReadStub("mysql-create-change-table", map[string]string{
+				"query": stub.Read("mysql-create-change-table", map[string]string{
 					"<CHANGE_TABLE_SCHEMA>":  changeTableSchema,
 					"<CHANGE_TABLE>":         changeTable,
 					"<CHANGE_ID>":            "change_id",
@@ -355,7 +356,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 				}
 
 				if action == "ADD" {
-					SQL = util.ReadStub("mysql-add-column", map[string]string{
+					SQL = stub.Read("mysql-add-column", map[string]string{
 						"<SCHEMA>": changeTableSchema,
 						"<TABLE>":  column.Table.String,
 						"<COLUMN>": column.Name,
@@ -370,7 +371,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 						SQL = strings.ReplaceAll(SQL, "<DEFAULT> ", "")
 					}
 				} else if action == "MODIFY" {
-					SQL = util.ReadStub("mysql-modify-column", map[string]string{
+					SQL = stub.Read("mysql-modify-column", map[string]string{
 						"<SCHEMA>": changeTableSchema,
 						"<TABLE>":  column.Table.String,
 						"<COLUMN>": column.Name,
@@ -385,7 +386,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 						SQL = strings.ReplaceAll(SQL, "<DEFAULT> ", "")
 					}
 				} else if action == "DROP" {
-					SQL = util.ReadStub("mysql-drop-column", map[string]string{
+					SQL = stub.Read("mysql-drop-column", map[string]string{
 						"<SCHEMA>": changeTableSchema,
 						"<TABLE>":  column.Table.String,
 						"<COLUMN>": column.Name,
@@ -465,7 +466,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 		for _, triggerOption := range triggerOptions {
 			if !createAuditTable {
 				SQLStatements = append(SQLStatements, map[string]any{
-					"query": util.ReadStub("mysql-drop-trigger", map[string]string{
+					"query": stub.Read("mysql-drop-trigger", map[string]string{
 						"<SCHEMA>":  changeTableSchema,
 						"<TRIGGER>": triggerOption["trigger"].(string),
 					}),
@@ -483,7 +484,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 			}
 
 			SQLStatements = append(SQLStatements, map[string]any{
-				"query": util.ReadStub("mysql-create-trigger", map[string]string{
+				"query": stub.Read("mysql-create-trigger", map[string]string{
 					"<TRIGGER>":   fmt.Sprintf("%s.%s", app.Config.DB.Schema, trigger),
 					"<ACTION>":    action,
 					"<TABLE>":     fmt.Sprintf("%s.%s", app.Config.DB.Schema, triggerTable),
@@ -533,7 +534,7 @@ func (d MySQLDriver) Purge(app config.App) error {
 		return err
 	}
 
-	historyTableSQL := util.ReadStub("mysql-create-history-table", map[string]string{
+	historyTableSQL := stub.Read("mysql-create-history-table", map[string]string{
 		"<SCHEMA>": app.Config.DB.Schema,
 		"<TABLE>":  app.Config.HistoryTable,
 	})
@@ -556,28 +557,28 @@ func (d MySQLDriver) Purge(app config.App) error {
 
 		// drop change table
 		SQLStatements = append(SQLStatements, map[string]any{
-			"query": util.ReadStub("mysql-drop-table", map[string]string{
+			"query": stub.Read("mysql-drop-table", map[string]string{
 				"<TABLE>": historyRecord.ChangeTable,
 			}),
 		})
 
 		// drop insert trigger
 		SQLStatements = append(SQLStatements, map[string]any{
-			"query": util.ReadStub("mysql-drop-trigger", map[string]string{
+			"query": stub.Read("mysql-drop-trigger", map[string]string{
 				"<TRIGGER>": historyRecord.InsertTrigger,
 			}),
 		})
 
 		// drop update trigger
 		SQLStatements = append(SQLStatements, map[string]any{
-			"query": util.ReadStub("mysql-drop-trigger", map[string]string{
+			"query": stub.Read("mysql-drop-trigger", map[string]string{
 				"<TRIGGER>": historyRecord.UpdateTrigger,
 			}),
 		})
 
 		// drop delete trigger
 		SQLStatements = append(SQLStatements, map[string]any{
-			"query": util.ReadStub("mysql-drop-trigger", map[string]string{
+			"query": stub.Read("mysql-drop-trigger", map[string]string{
 				"<TRIGGER>": historyRecord.DeleteTrigger,
 			}),
 		})
@@ -585,7 +586,7 @@ func (d MySQLDriver) Purge(app config.App) error {
 
 	// drop history table
 	SQLStatements = append(SQLStatements, map[string]any{
-		"query": util.ReadStub("mysql-drop-table", map[string]string{
+		"query": stub.Read("mysql-drop-table", map[string]string{
 			"<TABLE>": app.Config.HistoryTable,
 		}),
 	})

@@ -30,3 +30,15 @@ func joinNonEmpty(items []string, sep string) string {
 
 	return strings.Join(nonEmptyItems, sep)
 }
+
+// BuildIdentifierName
+// TODO: Make sep an arg (?)
+func BuildIdentifierName(maxLength int, ids ...string) string {
+	id := joinNonEmpty(ids, "_")
+
+	if len(id) > maxLength {
+		return id[:maxLength]
+	}
+
+	return id
+}
