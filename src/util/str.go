@@ -22,7 +22,7 @@ func FormatByStrategies(v string, namingStrategy string, caseStrategy string) st
 }
 
 func BuildIdentifierName(maxLength int, ids ...string) string {
-	id := joinNonEmpty(ids, " ")
+	id := joinNonEmpty(ids, "_")
 
 	if len(id) > maxLength {
 		return id[:maxLength]

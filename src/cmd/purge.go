@@ -9,8 +9,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var clean bool
-
 var purgeCmd = &cobra.Command{
 	Use:   "purge",
 	Short: "Purge all changes made by Inspecta (removes history table, audit tables, triggers etc.).",
@@ -28,7 +26,7 @@ var purgeCmd = &cobra.Command{
 		}
 
 		profile := profiler.New()
-		err = d.Purge(app, clean)
+		err = d.Purge(app)
 
 		if err != nil {
 			return err
@@ -40,7 +38,7 @@ var purgeCmd = &cobra.Command{
 			version, _ := d.GetServerVersion(app.Config.DB)
 
 			telemetry.NewSignal(
-				"reverse",
+				"purge",
 				app.Config.DB.Driver,
 				version,
 				map[string]any{

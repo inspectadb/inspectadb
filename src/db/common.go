@@ -24,16 +24,13 @@ func WithTransaction(conn *sql.DB, fn txCallback) {
 		log.Fatalf("failed to begin transaction. %s", err)
 	}
 
-	err = fn(tx)
-
-	if err != nil {
+	if err = fn(tx); err != nil {
 		tx.Rollback()
 		log.Fatalf("failed to execute transaction. %s", err)
 	}
 
-	err = tx.Commit()
-
-	if err != nil {
+	if err = tx.Commit(); err != nil {
+		tx.Rollback()
 		log.Fatalf("failed to commit transaction. %s", err)
 	}
 }
