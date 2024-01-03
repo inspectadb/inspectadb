@@ -18,14 +18,14 @@ type (
 		// GetColumnsToSyncSQL
 		// Get columns that need to be:
 		// 	- added
-		// 	- modified
+		// 	- modified - positioning or data types
 		// 	- deleted
 		// between the original and audit table
 		// excluding base audit columns
 		GetColumnsToSyncSQL() string
 		Connect(dbConfig config.DBConfig) (*sql.DB, error)
 		Audit(app config.App) error
-		Purge(app config.App, clean bool) error
+		Purge(app config.App) error
 	}
 )
 

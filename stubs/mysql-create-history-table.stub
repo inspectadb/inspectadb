@@ -1,10 +1,10 @@
 CREATE TABLE IF NOT EXISTS `<SCHEMA>`.`<TABLE>` (
     `id`                       INT PRIMARY KEY AUTO_INCREMENT,
-    `original_table`           VARCHAR (64) UNIQUE NOT NULL,
-    `audit_table`              VARCHAR (64) UNIQUE NOT NULL,
-    `insert_trigger`           VARCHAR (192) UNIQUE DEFAULT NULL,
-    `update_trigger`           VARCHAR (192) UNIQUE DEFAULT NULL,
-    `delete_trigger`           VARCHAR (192) UNIQUE DEFAULT NULL,
-    `user`                     VARCHAR(400),
+    `trigger_table`            VARCHAR (500) UNIQUE NOT NULL,
+    `change_table`             VARCHAR (500) UNIQUE NOT NULL,
+    `insert_trigger`           VARCHAR (500) UNIQUE DEFAULT NULL,
+    `update_trigger`           VARCHAR (500) UNIQUE DEFAULT NULL,
+    `delete_trigger`           VARCHAR (500) UNIQUE DEFAULT NULL,
+    `user`                     VARCHAR(500),
     `performed_at`             TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

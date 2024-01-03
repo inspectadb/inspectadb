@@ -1,4 +1,4 @@
-package util
+package stub
 
 import (
 	"embed"
@@ -11,7 +11,7 @@ var (
 	StubsFolder embed.FS
 )
 
-func ReadStub(path string, args map[string]string) string {
+func Read(path string, args map[string]string) string {
 	contents, err := StubsFolder.ReadFile(fmt.Sprintf("stubs/%s.stub", path))
 
 	if err != nil {

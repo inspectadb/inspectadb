@@ -22,6 +22,7 @@ type DBConfig struct {
 
 type Config struct {
 	DB                DBConfig
+	AlternateSchema   string
 	HistoryTable      string
 	ChangeTablePrefix string
 	ChangeTableSuffix string
@@ -83,6 +84,7 @@ func Load(path string) (App, error) {
 	viper.SetTypeByDefaultValue(true)
 	viper.SetEnvPrefix("INSPECTA")
 	viper.SetConfigType("env")
+	viper.SetDefault("alternate_schema", "")
 	viper.SetDefault("history_table", "inspecta_history")
 	viper.SetDefault("change_table_prefix", "")
 	viper.SetDefault("change_table_suffix", "audit")
@@ -118,6 +120,7 @@ func Load(path string) (App, error) {
 	return App{
 		Config{
 			DB:                dbConfig,
+			AlternateSchema:   viper.GetString("alternate_schema"),
 			HistoryTable:      viper.GetString("history_table"),
 			ChangeTablePrefix: viper.GetString("change_table_prefix"),
 			ChangeTableSuffix: viper.GetString("change_table_suffix"),
