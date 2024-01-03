@@ -228,7 +228,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 		deleteTrigger := fmt.Sprintf("%s.%s", app.Config.DB.Schema, util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", triggerTable, "del", "trgr", util.UUIDWithoutHyphens()))
 		triggerOptions := []map[string]any{}
 		historyRecordRow := historyRecord{}
-		
+
 		err := conn.QueryRow(
 			"SELECT `trigger_table`, `change_table`, `insert_trigger`, `update_trigger`, `delete_trigger` FROM `"+app.Config.HistoryTable+"` WHERE trigger_table = ?", fmt.Sprintf("%s.%s", app.Config.DB.Schema, triggerTable)).Scan(
 			&historyRecordRow.TriggerTable,
