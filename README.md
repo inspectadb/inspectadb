@@ -1,4 +1,4 @@
 # Inspecta
 
-Inspecta seamlessly automates the setup of [change data capture](https://en.wikipedia.org/wiki/Change_data_capture#Triggers_on_tables) through audit tables.
+Seamlessly automate the setup of [change data capture](https://en.wikipedia.org/wiki/Change_data_capture#Triggers_on_tables) through change tables.
 
