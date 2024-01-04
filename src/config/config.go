@@ -20,14 +20,18 @@ type DBConfig struct {
 }
 
 type Config struct {
-	DB                DBConfig
-	AlternateSchema   string
-	HistoryTable      string
-	ChangeTablePrefix string
-	ChangeTableSuffix string
-	Exclude           []string
-	Telemetry         bool
-	LicenseKey        string
+	DB                 DBConfig
+	AlternateSchema    string
+	HistoryTable       string
+	ChangeTablePrefix  string
+	ChangeTableSuffix  string
+	ChangeIdColumn     string
+	ChangeActionColumn string
+	ChangedByColumn    string
+	ChangedAtColumn    string
+	Exclude            []string
+	Telemetry          bool
+	LicenseKey         string
 }
 
 type App struct {
@@ -85,6 +89,10 @@ func Load(path string) (App, error) {
 	viper.SetDefault("history_table", "inspecta_history")
 	viper.SetDefault("change_table_prefix", "")
 	viper.SetDefault("change_table_suffix", "audit")
+	viper.SetDefault("change_id_column", "change_id")
+	viper.SetDefault("change_action_column", "change_action")
+	viper.SetDefault("changed_by_column", "changed_by")
+	viper.SetDefault("changed_at_column", "changed_at")
 	viper.SetDefault("exclude", []string{})
 	viper.SetDefault("telemetry", true)
 	viper.SetDefault("license_key", "")
@@ -116,14 +124,18 @@ func Load(path string) (App, error) {
 
 	return App{
 		Config{
-			DB:                dbConfig,
-			AlternateSchema:   viper.GetString("alternate_schema"),
-			HistoryTable:      viper.GetString("history_table"),
-			ChangeTablePrefix: viper.GetString("change_table_prefix"),
-			ChangeTableSuffix: viper.GetString("change_table_suffix"),
-			Exclude:           exclude,
-			Telemetry:         viper.GetBool("telemetry"),
-			LicenseKey:        viper.GetString("license_key"),
+			DB:                 dbConfig,
+			AlternateSchema:    viper.GetString("alternate_schema"),
+			HistoryTable:       viper.GetString("history_table"),
+			ChangeTablePrefix:  viper.GetString("change_table_prefix"),
+			ChangeTableSuffix:  viper.GetString("change_table_suffix"),
+			ChangeIdColumn:     viper.GetString("change_id_column"),
+			ChangeActionColumn: viper.GetString("change_action_column"),
+			ChangedByColumn:    viper.GetString("changed_by_column"),
+			ChangedAtColumn:    viper.GetString("changed_at_column"),
+			Exclude:            exclude,
+			Telemetry:          viper.GetBool("telemetry"),
+			LicenseKey:         viper.GetString("license_key"),
 		},
 	}, nil
 }
