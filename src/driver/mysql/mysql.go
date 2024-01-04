@@ -251,10 +251,10 @@ func (d MySQLDriver) Audit(app config.App) error {
 			SQLStatements = append(SQLStatements, map[string]any{
 				"query": stub.Read("mysql-create-change-table", map[string]string{
 					"<CHANGE_TABLE>":  changeTable,
-					"<CHANGE_ID>":     "change_id",
-					"<CHANGE_ACTION>": "change_action",
-					"<CHANGED_BY>":    "changed_by",
-					"<CHANGED_AT>":    "changed_at",
+					"<CHANGE_ID>":     app.Config.ChangeIdColumn,
+					"<CHANGE_ACTION>": app.Config.ChangeActionColumn,
+					"<CHANGED_BY>":    app.Config.ChangedByColumn,
+					"<CHANGED_AT>":    app.Config.ChangedAtColumn,
 					"<TRIGGER_TABLE>": fmt.Sprintf("%s.%s", triggerTableSchema, triggerTable),
 				}),
 			})
@@ -311,10 +311,10 @@ func (d MySQLDriver) Audit(app config.App) error {
 				changeTableSchema,
 				triggerTable,
 				triggerTableSchema,
-				"change_id",
-				"change_action",
-				"changed_by",
-				"changed_at",
+				app.Config.ChangeIdColumn,
+				app.Config.ChangeActionColumn,
+				app.Config.ChangedByColumn,
+				app.Config.ChangedAtColumn,
 				// M
 				triggerTable,
 				triggerTableSchema,
@@ -351,7 +351,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 
 				if column.Position.Valid {
 					if !column.After.Valid && column.Position.Int16 == int16(1) {
-						column.After = sql.NullString{String: "changed_at", Valid: true}
+						column.After = sql.NullString{String: app.Config.ChangedAtColumn, Valid: true}
 					}
 				}
 
