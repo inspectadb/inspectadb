@@ -2,8 +2,9 @@ package driver
 
 import (
 	"database/sql"
-	"errors"
+	"fmt"
 	"github.com/inspectadb/inspectadb/src/config"
+	"github.com/inspectadb/inspectadb/src/errs"
 	"log"
 )
 
@@ -35,7 +36,7 @@ var (
 
 func Register(name string, driver Driver) {
 	if _, dup := drivers[name]; dup {
-		log.Fatalf("driver '%s' has already been registered.", name)
+		log.Fatalln(fmt.Errorf("%w: %s", errs.DuplicateDriverRegistration, name))
 	}
 
 	drivers[name] = driver
@@ -44,9 +45,8 @@ func Register(name string, driver Driver) {
 func Get(name string) (Driver, error) {
 	d, ok := drivers[name]
 
-	// If the key exists
 	if !ok {
-		return nil, errors.New("unknown driver '" + name + "'")
+		return nil, fmt.Errorf("%w: %s", errs.UnknownDriverRequested, name)
 	}
 
 	return d, nil

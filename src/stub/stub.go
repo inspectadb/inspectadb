@@ -3,6 +3,7 @@ package stub
 import (
 	"embed"
 	"fmt"
+	"github.com/inspectadb/inspectadb/src/errs"
 	"log"
 	"strings"
 )
@@ -15,7 +16,7 @@ func Read(path string, args map[string]string) string {
 	contents, err := StubsFolder.ReadFile(fmt.Sprintf("stubs/%s.stub", path))
 
 	if err != nil {
-		log.Fatalf("failed to read stub file: %s. %s.", path, err)
+		log.Fatalf(fmt.Errorf("%w: %s", errs.FailedToReadStubFile, path).Error())
 	}
 
 	contentsStr := string(contents)

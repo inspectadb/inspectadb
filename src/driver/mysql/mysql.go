@@ -7,6 +7,8 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/inspectadb/inspectadb/src/config"
 	"github.com/inspectadb/inspectadb/src/db"
+	"github.com/inspectadb/inspectadb/src/errs"
+	"github.com/inspectadb/inspectadb/src/lang"
 	"github.com/inspectadb/inspectadb/src/stub"
 	"github.com/inspectadb/inspectadb/src/util"
 	"log"
@@ -39,15 +41,14 @@ func (d MySQLDriver) GetServerVersion(dbConfig config.DBConfig) (string, error) 
 	conn, err := d.Connect(dbConfig)
 
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("%w: %w", errs.FailedToGetServerVersion, err)
 	}
 
 	var version string
-
 	err = conn.QueryRow("SELECT @@version;").Scan(&version)
 
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("%w: %w", errs.FailedToGetServerVersion, err)
 	}
 
 	return version, nil
@@ -161,11 +162,11 @@ func (d MySQLDriver) Connect(dbConfig config.DBConfig) (*sql.DB, error) {
 	conn, err := sql.Open("mysql", cfg.FormatDSN())
 
 	if err != nil {
-		return conn, errors.Join(errors.New("failed to initialize db driver 'mysql'"), err)
+		return nil, errors.Join(errs.FailedToOpenDB, err)
 	}
 
 	if err := conn.Ping(); err != nil {
-		return conn, errors.Join(errors.New("failed to connect to db"), err)
+		return nil, errors.Join(errs.FailedToConnectToDB, err)
 	}
 
 	return conn, nil
@@ -217,7 +218,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 	triggerTables, err := db.GetTables(conn, getTablesSQL, append([]any{app.Config.DB.Schema, app.Config.HistoryTable}, util.StringSliceToAnySlice(app.Config.Exclude)...))
 
 	if err != nil {
-		return errors.Join(errors.New("failed to get tables"), err)
+		return fmt.Errorf("%w: %w", errs.FailedToGetTriggerTables, err)
 	}
 
 	for _, triggerTable := range triggerTables {
@@ -227,8 +228,8 @@ func (d MySQLDriver) Audit(app config.App) error {
 		updateTrigger := fmt.Sprintf("%s.%s", app.Config.DB.Schema, util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", triggerTable, "upd", "trgr", util.UUIDWithoutHyphens()))
 		deleteTrigger := fmt.Sprintf("%s.%s", app.Config.DB.Schema, util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", triggerTable, "del", "trgr", util.UUIDWithoutHyphens()))
 		triggerOptions := []map[string]any{}
-		historyRecordRow := historyRecord{}
 
+		historyRecordRow := historyRecord{}
 		err := conn.QueryRow(
 			"SELECT `trigger_table`, `change_table`, `insert_trigger`, `update_trigger`, `delete_trigger` FROM `"+app.Config.HistoryTable+"` WHERE trigger_table = ?", fmt.Sprintf("%s.%s", app.Config.DB.Schema, triggerTable)).Scan(
 			&historyRecordRow.TriggerTable,
@@ -330,10 +331,10 @@ func (d MySQLDriver) Audit(app config.App) error {
 			hasNext := changedColumnsRows.Next()
 
 			if errors.Is(err, sql.ErrNoRows) || !hasNext {
-				log.Println(fmt.Sprintf("no drift detected between %s (original) and %s (audit), skipping...", historyRecordRow.TriggerTable, historyRecordRow.ChangeTable))
+				log.Println(fmt.Sprintf(lang.NoDriftDetected, historyRecordRow.TriggerTable, historyRecordRow.ChangeTable))
 				continue
 			} else {
-				log.Println(fmt.Sprintf("%s and %s have drifted, reconciling...", historyRecordRow.TriggerTable, historyRecordRow.ChangeTable))
+				log.Println(fmt.Sprintf(lang.DriftDetected, historyRecordRow.TriggerTable, historyRecordRow.ChangeTable))
 			}
 
 			for hasNext {

@@ -1,6 +1,7 @@
 package profiler
 
 import (
+	"github.com/inspectadb/inspectadb/src/errs"
 	"time"
 )
 
@@ -12,7 +13,7 @@ type profile struct {
 
 func (p *profile) Start() {
 	if !p.StartedAt.IsZero() {
-		panic("Attempting to start an already started profile")
+		panic(errs.ProfileAlreadyStarted)
 	}
 
 	p.StartedAt = time.Now()
@@ -20,7 +21,7 @@ func (p *profile) Start() {
 
 func (p *profile) End() {
 	if p.StartedAt.IsZero() {
-		panic("Attempting to end an unstarted profile")
+		panic(errs.ProfileAlreadyEnded)
 	}
 
 	p.EndedAt = time.Now()

@@ -3,6 +3,8 @@ package db
 import (
 	"database/sql"
 	"errors"
+	"fmt"
+	"github.com/inspectadb/inspectadb/src/errs"
 	"log"
 )
 
@@ -21,23 +23,21 @@ func WithTransaction(conn *sql.DB, fn txCallback) {
 	tx, err := conn.Begin()
 
 	if err != nil {
-		log.Fatalf("failed to begin transaction. %s", err)
+		log.Fatalf("%v", fmt.Errorf("%w: %v", errs.FailedToBeginTransaction, err))
 	}
 
 	if err = fn(tx); err != nil {
 		tx.Rollback()
-		log.Fatalf("failed to execute transaction. %s", err)
+		log.Fatalf("%v", fmt.Errorf("%w: %v", errs.FailedToExecuteTransaction, err))
 	}
 
 	if err = tx.Commit(); err != nil {
-		tx.Rollback()
-		log.Fatalf("failed to commit transaction. %s", err)
+		log.Fatalf("%v", fmt.Errorf("%w: %v", errs.FailedToCommitTransaction, err))
 	}
 }
 
 func GetTables(conn *sql.DB, query string, params []any) ([]string, error) {
 	tables := []string{}
-
 	rows, err := conn.Query(query, params...)
 
 	if err != nil {
@@ -47,10 +47,7 @@ func GetTables(conn *sql.DB, query string, params []any) ([]string, error) {
 	defer rows.Close()
 
 	for rows.Next() {
-		var (
-			table string
-		)
-
+		var table string
 		err = rows.Scan(&table)
 
 		if err != nil {
@@ -67,7 +64,7 @@ func CreateHistoryTable(conn *sql.DB, SQL string) error {
 	_, err := conn.Exec(SQL)
 
 	if err != nil {
-		return errors.Join(errors.New("failed to create history table"), err)
+		return errors.Join(errs.FailedToCreateHistoryTable, err)
 	}
 
 	return nil
