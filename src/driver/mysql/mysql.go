@@ -41,14 +41,14 @@ func (d MySQLDriver) GetServerVersion(dbConfig config.DBConfig) (string, error) 
 	conn, err := d.Connect(dbConfig)
 
 	if err != nil {
-		return "", fmt.Errorf("%w: %w", errs.FailedToGetServerVersion, err)
+		return "", fmt.Errorf("%w: %v", errs.FailedToGetServerVersion, err)
 	}
 
 	var version string
 	err = conn.QueryRow("SELECT @@version;").Scan(&version)
 
 	if err != nil {
-		return "", fmt.Errorf("%w: %w", errs.FailedToGetServerVersion, err)
+		return "", fmt.Errorf("%w: %v", errs.FailedToGetServerVersion, err)
 	}
 
 	return version, nil
@@ -218,7 +218,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 	triggerTables, err := db.GetTables(conn, getTablesSQL, append([]any{app.Config.DB.Schema, app.Config.HistoryTable}, util.StringSliceToAnySlice(app.Config.Exclude)...))
 
 	if err != nil {
-		return fmt.Errorf("%w: %w", errs.FailedToGetTriggerTables, err)
+		return fmt.Errorf("%w: %v", errs.FailedToGetTriggerTables, err)
 	}
 
 	for _, triggerTable := range triggerTables {
@@ -240,7 +240,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 		)
 
 		if !errors.Is(err, sql.ErrNoRows) && err != nil {
-			return err
+			return fmt.Errorf("%w: %v", errs.FailedToGetHistoryRecord, err)
 		}
 
 		// hasn't been audited
@@ -442,7 +442,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 			ORDER BY ORDINAL_POSITION ASC;`, triggerTableSchema, triggerTable)
 
 		if err != nil {
-			return errors.Join(errors.New("failed to get columns for '"+triggerTable+"'"), err)
+			return fmt.Errorf("%w: %s. %v", errs.FailedToGetTriggerTableColumns, triggerTable, err)
 		}
 
 		notLast := rows.Next()
@@ -453,7 +453,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 			err = rows.Scan(&column.Name, &column.Type)
 
 			if err != nil {
-				return errors.Join(errors.New("failed to scan column information"), err)
+				return fmt.Errorf("%w: %v", errs.FailedToScanTriggerTableColumns, err)
 			}
 
 			notLast = rows.Next()
@@ -514,7 +514,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 				}
 
 				if err != nil {
-					return errors.Join(errors.New("query: "+query), err)
+					return fmt.Errorf("%w: sql: %s. params: %v", err, query, params)
 				}
 			}
 
@@ -554,7 +554,7 @@ func (d MySQLDriver) Purge(app config.App) error {
 	defer rows.Close()
 
 	if err != nil {
-		return errors.Join(errors.New("failed to get history records"), err)
+		return fmt.Errorf("%w: %v", errs.FailedToGetHistoryRecord, err)
 	}
 
 	for rows.Next() {
@@ -613,7 +613,7 @@ func (d MySQLDriver) Purge(app config.App) error {
 			}
 
 			if err != nil {
-				return errors.Join(errors.New("query: "+query), err)
+				return fmt.Errorf("%w: sql: %s. params: %v", err, query, params)
 			}
 		}
 
