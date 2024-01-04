@@ -1,12 +1,15 @@
 package cmd
 
 import (
-	"errors"
 	"github.com/inspectadb/inspectadb/src/config"
 	"github.com/inspectadb/inspectadb/src/driver"
+	"github.com/inspectadb/inspectadb/src/errs"
+	"github.com/inspectadb/inspectadb/src/lang"
 	"github.com/inspectadb/inspectadb/src/profiler"
 	"github.com/inspectadb/inspectadb/src/telemetry"
 	"github.com/spf13/cobra"
+	"log"
+	"math"
 )
 
 var auditCmd = &cobra.Command{
@@ -16,7 +19,7 @@ var auditCmd = &cobra.Command{
 		app, err := config.Load(configPath)
 
 		if err != nil {
-			return errors.Join(errors.New("failed to load config"), err)
+			return err
 		}
 
 		d, err := driver.Get(app.Config.DB.Driver)
@@ -26,7 +29,7 @@ var auditCmd = &cobra.Command{
 		}
 
 		if !d.VerifyLicense(app) {
-			return errors.New("failed to verify license, cannot proceed")
+			return errs.FailedToVerifyLicense
 		}
 
 		profile := profiler.New()
@@ -37,6 +40,8 @@ var auditCmd = &cobra.Command{
 		}
 
 		profile.End()
+
+		log.Printf(lang.AuditCompleted, math.Round(profile.Delta.Seconds()*100)/100)
 
 		if app.Config.Telemetry {
 			version, _ := d.GetServerVersion(app.Config.DB)

@@ -1,12 +1,14 @@
 package cmd
 
 import (
-	"errors"
 	"github.com/inspectadb/inspectadb/src/config"
 	"github.com/inspectadb/inspectadb/src/driver"
+	"github.com/inspectadb/inspectadb/src/lang"
 	"github.com/inspectadb/inspectadb/src/profiler"
 	"github.com/inspectadb/inspectadb/src/telemetry"
 	"github.com/spf13/cobra"
+	"log"
+	"math"
 )
 
 var purgeCmd = &cobra.Command{
@@ -16,7 +18,7 @@ var purgeCmd = &cobra.Command{
 		app, err := config.Load(configPath)
 
 		if err != nil {
-			return errors.Join(errors.New("failed to load config"), err)
+			return err
 		}
 
 		d, err := driver.Get(app.Config.DB.Driver)
@@ -33,6 +35,8 @@ var purgeCmd = &cobra.Command{
 		}
 
 		profile.End()
+
+		log.Printf(lang.PurgeCompleted, math.Round(profile.Delta.Seconds()*100)/100)
 
 		if app.Config.Telemetry {
 			version, _ := d.GetServerVersion(app.Config.DB)

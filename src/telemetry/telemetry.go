@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
-	"github.com/inspectadb/inspectadb/src/config"
-	"log"
+	"github.com/inspectadb/inspectadb/src/consts"
 	"net/http"
 	"os"
 	"runtime"
@@ -35,7 +34,6 @@ func (s signal) Send() {
 	req, err := client.Post(Endpoint, "application/json", bytes.NewBufferString(string(pl)))
 
 	if err != nil {
-		log.Printf("failed to send telemetry request. this will not stop execution. You can help us out by reporting this as an issue. %s", err)
 	}
 
 	defer req.Body.Close()
@@ -45,7 +43,7 @@ func NewSignal(command string, driver string, serverVersion string, profile map[
 	return &signal{
 		Command:       command,
 		Driver:        driver,
-		AppVersion:    config.AppVersion,
+		AppVersion:    consts.AppVersion,
 		ServerVersion: serverVersion,
 		OS:            runtime.GOOS,
 		CI:            isRunningInCI(),

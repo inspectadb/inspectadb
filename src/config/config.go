@@ -2,12 +2,11 @@ package config
 
 import (
 	"errors"
+	"github.com/inspectadb/inspectadb/src/errs"
 	"github.com/spf13/viper"
 	"strconv"
 	"strings"
 )
-
-const AppVersion = "0.0.1"
 
 type DBConfig struct {
 	Driver   string
@@ -47,11 +46,10 @@ func parseDSN(dsn string) (DBConfig, error) {
 	port, err := strconv.Atoi(hostAndPort[1])
 
 	if err != nil {
-		return DBConfig{}, errors.New("failed to load config: failed to parse port")
+		return DBConfig{}, errors.Join(errs.InvalidPort, err)
 	}
 
 	dsn = dsn[strings.Index(dsn, "/")+1:]
-
 	db := ""
 	schema := ""
 
@@ -82,7 +80,6 @@ func parseDSN(dsn string) (DBConfig, error) {
 
 func Load(path string) (App, error) {
 	viper.SetTypeByDefaultValue(true)
-	viper.SetEnvPrefix("INSPECTA")
 	viper.SetConfigType("env")
 	viper.SetDefault("alternate_schema", "")
 	viper.SetDefault("history_table", "inspecta_history")
@@ -97,12 +94,12 @@ func Load(path string) (App, error) {
 		viper.SetConfigFile(path)
 
 		if err := viper.ReadInConfig(); err != nil {
-			return App{}, err
+			return App{}, errors.Join(errs.FailedToLoad, err)
 		}
 	}
 
 	if viper.GetString("dsn") == "" {
-		return App{}, errors.New("failed to load config: 'dsn' must be set")
+		return App{}, errs.InvalidDSN
 	}
 
 	dbConfig, err := parseDSN(viper.GetString("dsn"))
