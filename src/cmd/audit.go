@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/inspectadb/inspectadb/src/config"
+	"github.com/inspectadb/inspectadb/src/db"
 	"github.com/inspectadb/inspectadb/src/driver"
 	"github.com/inspectadb/inspectadb/src/errs"
 	"github.com/inspectadb/inspectadb/src/lang"
@@ -22,7 +23,7 @@ var auditCmd = &cobra.Command{
 			return err
 		}
 
-		d, err := driver.Get(app.Config.DB.Driver)
+		d, err := driver.Get(app.DB.Config.Driver)
 
 		if err != nil {
 			return err
@@ -31,6 +32,16 @@ var auditCmd = &cobra.Command{
 		if !d.VerifyLicense(app) {
 			return errs.FailedToVerifyLicense
 		}
+
+		conn, err := db.Connect(d, app.DB.Config)
+
+		if err != nil {
+			return err
+		}
+
+		app.DB.Conn = conn
+
+		log.Fatalln(conn)
 
 		profile := profiler.New()
 		err = d.Audit(app)
@@ -44,12 +55,12 @@ var auditCmd = &cobra.Command{
 		log.Printf(lang.AuditCompleted, math.Round(profile.Delta.Seconds()*100)/100)
 
 		if app.Config.Telemetry {
-			version, _ := d.GetServerVersion(app.Config.DB)
+			//version, _ := d.GetServerVersion(app.Config.DB)
 
 			telemetry.NewSignal(
 				"audit",
 				app.Config.DB.Driver,
-				version,
+				"",
 				map[string]any{
 					"start":   profile.StartedAt.Unix(),
 					"elapsed": profile.Delta.Nanoseconds(),

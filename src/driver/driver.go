@@ -1,7 +1,6 @@
 package driver
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/inspectadb/inspectadb/src/config"
 	"github.com/inspectadb/inspectadb/src/errs"
@@ -13,9 +12,9 @@ type (
 		VerifyLicense(app config.App) bool
 		WrapIdentifier(identifier string) string
 		GetIdentifierMaxLength() int
-		GetServerVersion(dbConfig config.DBConfig) (string, error)
 		DebugQuery(SQL string, params []any)
 		BuildPlaceholders(totalNoOfPlaceholders int, startFrom int) string
+		GetServerVersionSQL() string
 		// GetColumnsToSyncSQL
 		// Get columns that need to be:
 		// 	- added
@@ -24,7 +23,7 @@ type (
 		// between the original and audit table
 		// excluding base audit columns
 		GetColumnsToSyncSQL() string
-		Connect(dbConfig config.DBConfig) (*sql.DB, error)
+		BuildDSN(dbConfig config.DBConfig) string
 		Audit(app config.App) error
 		Purge(app config.App) error
 	}

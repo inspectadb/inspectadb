@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/go-sql-driver/mysql"
+	mysqlDriver "github.com/go-sql-driver/mysql"
 	"github.com/inspectadb/inspectadb/src/config"
 	"github.com/inspectadb/inspectadb/src/db"
 	"github.com/inspectadb/inspectadb/src/errs"
@@ -37,21 +37,8 @@ func (d MySQLDriver) WrapIdentifier(identifier string) string {
 	return "`" + identifier + "`"
 }
 
-func (d MySQLDriver) GetServerVersion(dbConfig config.DBConfig) (string, error) {
-	conn, err := d.Connect(dbConfig)
-
-	if err != nil {
-		return "", fmt.Errorf("%w: %v", errs.FailedToGetServerVersion, err)
-	}
-
-	var version string
-	err = conn.QueryRow("SELECT @@version;").Scan(&version)
-
-	if err != nil {
-		return "", fmt.Errorf("%w: %v", errs.FailedToGetServerVersion, err)
-	}
-
-	return version, nil
+func (d MySQLDriver) GetServerVersionSQL() string {
+	return "SELECT @@version;"
 }
 
 func (d MySQLDriver) VerifyLicense(app config.App) bool {
@@ -149,8 +136,8 @@ func (d MySQLDriver) BuildPlaceholders(totalNoOfPlaceholders int, startFrom int)
 	return strings.Repeat(", ?", totalNoOfPlaceholders)
 }
 
-func (d MySQLDriver) Connect(dbConfig config.DBConfig) (*sql.DB, error) {
-	cfg := mysql.Config{
+func (d MySQLDriver) BuildDSN(dbConfig config.DBConfig) string {
+	cfg := mysqlDriver.Config{
 		User:                 dbConfig.User,
 		Passwd:               dbConfig.Password,
 		Net:                  "tcp",
@@ -159,17 +146,7 @@ func (d MySQLDriver) Connect(dbConfig config.DBConfig) (*sql.DB, error) {
 		AllowNativePasswords: true,
 	}
 
-	conn, err := sql.Open("mysql", cfg.FormatDSN())
-
-	if err != nil {
-		return nil, errors.Join(errs.FailedToOpenDB, err)
-	}
-
-	if err := conn.Ping(); err != nil {
-		return nil, errors.Join(errs.FailedToConnectToDB, err)
-	}
-
-	return conn, nil
+	return cfg.FormatDSN()
 }
 
 func (d MySQLDriver) Audit(app config.App) error {

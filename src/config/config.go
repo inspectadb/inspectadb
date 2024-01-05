@@ -1,6 +1,7 @@
 package config
 
 import (
+	"database/sql"
 	"errors"
 	"github.com/inspectadb/inspectadb/src/errs"
 	"github.com/spf13/viper"
@@ -19,8 +20,12 @@ type DBConfig struct {
 	SSLMode  string
 }
 
-type Config struct {
-	DB                 DBConfig
+type DB struct {
+	Conn   *sql.DB
+	Config DBConfig
+}
+
+type AppConfig struct {
 	AlternateSchema    string
 	HistoryTable       string
 	ChangeTablePrefix  string
@@ -35,7 +40,8 @@ type Config struct {
 }
 
 type App struct {
-	Config Config
+	DB     DB
+	Config AppConfig
 }
 
 func parseDSN(dsn string) (DBConfig, error) {
@@ -123,8 +129,11 @@ func Load(path string) (App, error) {
 	}
 
 	return App{
-		Config{
-			DB:                 dbConfig,
+		DB: DB{
+			Conn:   nil,
+			Config: dbConfig,
+		},
+		Config: AppConfig{
 			AlternateSchema:    viper.GetString("alternate_schema"),
 			HistoryTable:       viper.GetString("history_table"),
 			ChangeTablePrefix:  viper.GetString("change_table_prefix"),

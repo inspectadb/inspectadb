@@ -39,12 +39,12 @@ var purgeCmd = &cobra.Command{
 		log.Printf(lang.PurgeCompleted, math.Round(profile.Delta.Seconds()*100)/100)
 
 		if app.Config.Telemetry {
-			version, _ := d.GetServerVersion(app.Config.DB)
+			//version, _ := d.GetServerVersion(app.Config.DB)
 
 			telemetry.NewSignal(
 				"purge",
 				app.Config.DB.Driver,
-				version,
+				"",
 				map[string]any{
 					"start":   profile.StartedAt.Unix(),
 					"elapsed": profile.Delta.Nanoseconds(),
