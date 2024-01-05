@@ -41,6 +41,12 @@ func (d MySQLDriver) GetServerVersionSQL() string {
 	return "SELECT @@version;"
 }
 
+func (d MySQLDriver) GetHistoryTableSQL(app config.App) string {
+	return stub.Read("mysql-create-history-table", map[string]string{
+		"<TABLE>": fmt.Sprintf("%s.%s", app.DB.Config.Schema, app.Config.HistoryTable),
+	})
+}
+
 func (d MySQLDriver) VerifyLicense(app config.App) bool {
 	return true
 }
@@ -163,15 +169,6 @@ func (d MySQLDriver) Audit(app config.App) error {
 
 	if app.Config.AlternateSchema != "" {
 		changeTableSchema = app.Config.AlternateSchema
-	}
-
-	historyTableSQL := stub.Read("mysql-create-history-table", map[string]string{
-		"<SCHEMA>": app.DB.Config.Schema,
-		"<TABLE>":  app.Config.HistoryTable,
-	})
-
-	if err := db.CreateHistoryTable(app.DB.Conn, historyTableSQL); err != nil {
-		return err
 	}
 
 	getTablesSQL := `SELECT
@@ -328,8 +325,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 
 				if action == "ADD" {
 					SQL = stub.Read("mysql-add-column", map[string]string{
-						"<SCHEMA>": changeTableSchema,
-						"<TABLE>":  column.Table.String,
+						"<TABLE>":  fmt.Sprintf("%s.%s", changeTableSchema, column.Table.String),
 						"<COLUMN>": column.Name,
 						"<TYPE>":   column.Type,
 						"<AFTER>":  column.After.String,
@@ -347,8 +343,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 					})
 				} else if action == "MODIFY" {
 					SQL = stub.Read("mysql-modify-column", map[string]string{
-						"<SCHEMA>": changeTableSchema,
-						"<TABLE>":  column.Table.String,
+						"<TABLE>":  fmt.Sprintf("%s.%s", changeTableSchema, column.Table.String),
 						"<COLUMN>": column.Name,
 						"<TYPE>":   column.Type,
 						"<AFTER>":  column.After.String,
@@ -367,8 +362,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 				} else if action == "DROP" {
 					SQLStatements = append(SQLStatements, map[string]any{
 						"query": stub.Read("mysql-drop-column", map[string]string{
-							"<SCHEMA>": changeTableSchema,
-							"<TABLE>":  column.Table.String,
+							"<TABLE>":  fmt.Sprintf("%s.%s", changeTableSchema, column.Table.String),
 							"<COLUMN>": column.Name,
 						}),
 					})
@@ -473,7 +467,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 
 	// we have two preparatory queries by default
 	if len(SQLStatements) > 2 {
-		db.WithTransaction(app.DB.Conn, func(tx *sql.Tx) error {
+		db.Transaction(app.DB.Conn, func(tx *sql.Tx) error {
 			for _, SQLStatement := range SQLStatements {
 				query := SQLStatement["query"].(string)
 				params, hasParams := SQLStatement["params"].([]any)
@@ -507,8 +501,7 @@ func (d MySQLDriver) Purge(app config.App) error {
 	}
 
 	historyTableSQL := stub.Read("mysql-create-history-table", map[string]string{
-		"<SCHEMA>": app.DB.Config.Schema,
-		"<TABLE>":  app.Config.HistoryTable,
+		"<TABLE>": fmt.Sprintf("%s.%s", app.DB.Config.Schema, app.Config.HistoryTable),
 	})
 
 	if err := db.CreateHistoryTable(app.DB.Conn, historyTableSQL); err != nil {
@@ -563,7 +556,7 @@ func (d MySQLDriver) Purge(app config.App) error {
 		}),
 	})
 
-	db.WithTransaction(app.DB.Conn, func(tx *sql.Tx) error {
+	db.Transaction(app.DB.Conn, func(tx *sql.Tx) error {
 		var query string
 		var err error
 

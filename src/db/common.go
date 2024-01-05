@@ -21,7 +21,8 @@ type InformationSchemaColumn struct {
 
 type txCallback func(tx *sql.Tx) error
 
-func Connect(driver driver.Driver, dbConfig config.DBConfig) (*sql.DB, error) {
+func Connect(driver driver.Driver, app *config.App) error {
+	dbConfig := app.DB.Config
 	driverMap := map[string]string{
 		"mysql":      "mysql",
 		"mariadb":    "mysql",
@@ -32,23 +33,25 @@ func Connect(driver driver.Driver, dbConfig config.DBConfig) (*sql.DB, error) {
 	driverName, hasDriver := driverMap[dbConfig.Driver]
 
 	if !hasDriver {
-		return nil, fmt.Errorf("connect: %w", errs.UnknownDriverRequested)
+		return fmt.Errorf("connect: %w", errs.UnknownDriverRequested)
 	}
 
 	conn, err := sql.Open(driverName, driver.BuildDSN(dbConfig))
 
 	if err != nil {
-		return conn, errors.Join(errors.New("failed to initialize db driver 'mysql'"), err)
+		return errors.Join(errors.New("failed to initialize db driver 'mysql'"), err)
 	}
 
 	if err := conn.Ping(); err != nil {
-		return conn, errors.Join(errors.New("failed to connect to db"), err)
+		return errors.Join(errors.New("failed to connect to db"), err)
 	}
 
-	return conn, nil
+	app.DB.Conn = conn
+
+	return nil
 }
 
-func WithTransaction(conn *sql.DB, fn txCallback) {
+func Transaction(conn *sql.DB, fn txCallback) {
 	tx, err := conn.Begin()
 
 	if err != nil {

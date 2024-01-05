@@ -17,15 +17,17 @@ var purgeCmd = &cobra.Command{
 	Use:   "purge",
 	Short: "Purge all changes made by Inspecta (removes history table, audit tables, triggers etc.).",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		app, err := config.Load(configPath)
+		var (
+			app config.App
+			err error
+			d   driver.Driver
+		)
 
-		if err != nil {
+		if app, err = config.Load(configPath); err != nil {
 			return err
 		}
 
-		d, err := driver.Get(app.DB.Config.Driver)
-
-		if err != nil {
+		if d, err = driver.Get(app.DB.Config.Driver); err != nil {
 			return err
 		}
 
@@ -33,17 +35,17 @@ var purgeCmd = &cobra.Command{
 			return errs.FailedToVerifyLicense
 		}
 
-		conn, err := db.Connect(d, app.DB.Config)
-
-		if err != nil {
+		if err = db.Connect(d, &app); err != nil {
 			return err
 		}
 
-		app.DB.Conn = conn
 		profile := profiler.New()
-		err = d.Purge(app)
 
-		if err != nil {
+		if err := db.CreateHistoryTable(app.DB.Conn, d.GetHistoryTableSQL(app)); err != nil {
+			return err
+		}
+
+		if err = d.Purge(app); err != nil {
 			return err
 		}
 

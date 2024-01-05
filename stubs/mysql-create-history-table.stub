@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS `<SCHEMA>`.`<TABLE>` (
+CREATE TABLE IF NOT EXISTS <TABLE> (
     `id`                       INT PRIMARY KEY AUTO_INCREMENT,
     `trigger_table`            VARCHAR (500) UNIQUE NOT NULL,
     `change_table`             VARCHAR (500) UNIQUE NOT NULL,

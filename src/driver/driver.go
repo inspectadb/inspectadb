@@ -15,6 +15,7 @@ type (
 		DebugQuery(SQL string, params []any)
 		BuildPlaceholders(totalNoOfPlaceholders int, startFrom int) string
 		GetServerVersionSQL() string
+		GetHistoryTableSQL(app config.App) string
 		// GetColumnsToSyncSQL
 		// Get columns that need to be:
 		// 	- added
