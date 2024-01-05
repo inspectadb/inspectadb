@@ -40,9 +40,6 @@ var auditCmd = &cobra.Command{
 		}
 
 		app.DB.Conn = conn
-
-		log.Fatalln(conn)
-
 		profile := profiler.New()
 		err = d.Audit(app)
 
@@ -55,11 +52,11 @@ var auditCmd = &cobra.Command{
 		log.Printf(lang.AuditCompleted, math.Round(profile.Delta.Seconds()*100)/100)
 
 		if app.Config.Telemetry {
-			//version, _ := d.GetServerVersion(app.Config.DB)
+			version, _ := db.GetServerVersion(app.DB.Conn, d.GetServerVersionSQL())
 
 			telemetry.NewSignal(
 				"audit",
-				app.Config.DB.Driver,
+				version,
 				"",
 				map[string]any{
 					"start":   profile.StartedAt.Unix(),

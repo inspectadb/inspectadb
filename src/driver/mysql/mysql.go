@@ -158,25 +158,19 @@ func (d MySQLDriver) Audit(app config.App) error {
 			"query": "SET SESSION foreign_key_checks = 0;",
 		},
 	}
-	triggerTableSchema := app.Config.DB.Schema
-	changeTableSchema := app.Config.DB.Schema
+	triggerTableSchema := app.DB.Config.Schema
+	changeTableSchema := app.DB.Config.Schema
 
 	if app.Config.AlternateSchema != "" {
 		changeTableSchema = app.Config.AlternateSchema
 	}
 
-	conn, err := d.Connect(app.Config.DB)
-
-	if err != nil {
-		return err
-	}
-
 	historyTableSQL := stub.Read("mysql-create-history-table", map[string]string{
-		"<SCHEMA>": app.Config.DB.Schema,
+		"<SCHEMA>": app.DB.Config.Schema,
 		"<TABLE>":  app.Config.HistoryTable,
 	})
 
-	if err := db.CreateHistoryTable(conn, historyTableSQL); err != nil {
+	if err := db.CreateHistoryTable(app.DB.Conn, historyTableSQL); err != nil {
 		return err
 	}
 
@@ -188,11 +182,11 @@ func (d MySQLDriver) Audit(app config.App) error {
 						TABLE_TYPE = "BASE TABLE" AND
 						TABLE_NAME NOT IN (?<EXCLUDE>) AND
 						TABLE_NAME NOT IN (SELECT SUBSTRING_INDEX(change_table, '.', -1) FROM <SCHEMA>.<TABLE>)`
-	getTablesSQL = strings.ReplaceAll(getTablesSQL, "<SCHEMA>", fmt.Sprintf("%s", d.WrapIdentifier(app.Config.DB.Schema)))
+	getTablesSQL = strings.ReplaceAll(getTablesSQL, "<SCHEMA>", fmt.Sprintf("%s", d.WrapIdentifier(app.DB.Config.Schema)))
 	getTablesSQL = strings.ReplaceAll(getTablesSQL, "<EXCLUDE>", d.BuildPlaceholders(len(app.Config.Exclude), 0))
 	getTablesSQL = strings.ReplaceAll(getTablesSQL, "<TABLE>", fmt.Sprintf("%s", d.WrapIdentifier(app.Config.HistoryTable)))
 
-	triggerTables, err := db.GetTables(conn, getTablesSQL, append([]any{app.Config.DB.Schema, app.Config.HistoryTable}, util.StringSliceToAnySlice(app.Config.Exclude)...))
+	triggerTables, err := db.GetTables(app.DB.Conn, getTablesSQL, append([]any{app.DB.Config.Schema, app.Config.HistoryTable}, util.StringSliceToAnySlice(app.Config.Exclude)...))
 
 	if err != nil {
 		return fmt.Errorf("%w: %v", errs.FailedToGetTriggerTables, err)
@@ -201,14 +195,14 @@ func (d MySQLDriver) Audit(app config.App) error {
 	for _, triggerTable := range triggerTables {
 		createAuditTable := false
 		changeTable := ""
-		insertTrigger := fmt.Sprintf("%s.%s", app.Config.DB.Schema, util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", triggerTable, "ins", "trgr", util.UUIDWithoutHyphens()))
-		updateTrigger := fmt.Sprintf("%s.%s", app.Config.DB.Schema, util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", triggerTable, "upd", "trgr", util.UUIDWithoutHyphens()))
-		deleteTrigger := fmt.Sprintf("%s.%s", app.Config.DB.Schema, util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", triggerTable, "del", "trgr", util.UUIDWithoutHyphens()))
+		insertTrigger := fmt.Sprintf("%s.%s", app.DB.Config.Schema, util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", triggerTable, "ins", "trgr", util.UUIDWithoutHyphens()))
+		updateTrigger := fmt.Sprintf("%s.%s", app.DB.Config.Schema, util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", triggerTable, "upd", "trgr", util.UUIDWithoutHyphens()))
+		deleteTrigger := fmt.Sprintf("%s.%s", app.DB.Config.Schema, util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", triggerTable, "del", "trgr", util.UUIDWithoutHyphens()))
 		triggerOptions := []map[string]any{}
 
 		historyRecordRow := historyRecord{}
-		err := conn.QueryRow(
-			"SELECT `trigger_table`, `change_table`, `insert_trigger`, `update_trigger`, `delete_trigger` FROM `"+app.Config.HistoryTable+"` WHERE trigger_table = ?", fmt.Sprintf("%s.%s", app.Config.DB.Schema, triggerTable)).Scan(
+		err := app.DB.Conn.QueryRow(
+			"SELECT `trigger_table`, `change_table`, `insert_trigger`, `update_trigger`, `delete_trigger` FROM `"+app.Config.HistoryTable+"` WHERE trigger_table = ?", fmt.Sprintf("%s.%s", app.DB.Config.Schema, triggerTable)).Scan(
 			&historyRecordRow.TriggerTable,
 			&historyRecordRow.ChangeTable,
 			&historyRecordRow.InsertTrigger,
@@ -252,7 +246,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 			}
 
 			SQLStatements = append(SQLStatements, map[string]any{
-				"query": fmt.Sprintf("INSERT INTO `%s`.`%s` (`trigger_table`, `change_table`, `insert_trigger`, `update_trigger`, `delete_trigger`, `user`) VALUES (?, ?, ?, ?, ?, CURRENT_USER())", app.Config.DB.Schema, app.Config.HistoryTable),
+				"query": fmt.Sprintf("INSERT INTO `%s`.`%s` (`trigger_table`, `change_table`, `insert_trigger`, `update_trigger`, `delete_trigger`, `user`) VALUES (?, ?, ?, ?, ?, CURRENT_USER())", app.DB.Config.Schema, app.Config.HistoryTable),
 				"params": []any{
 					fmt.Sprintf("%s.%s", triggerTableSchema, triggerTable),
 					changeTable,
@@ -275,7 +269,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 			// Params for A: original_table, schema, original_table, schema, audit_table, schema
 			// Params for D: audit_table, schema, original_table, schema, EXCLUDE COLUMNS (x4)
 			// Params for M: original_table, audit_table, schema, schema
-			changedColumnsRows, err := conn.Query(d.GetColumnsToSyncSQL(),
+			changedColumnsRows, err := app.DB.Conn.Query(d.GetColumnsToSyncSQL(),
 				// A
 				triggerTable,
 				triggerTableSchema,
@@ -385,7 +379,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 
 			// schema.table
 			SQLStatements = append(SQLStatements, map[string]any{
-				"query": fmt.Sprintf("UPDATE `%s`.`%s` SET `performed_at` = NOW() WHERE `trigger_table` = ? AND `change_table` = ?", app.Config.DB.Schema, app.Config.HistoryTable),
+				"query": fmt.Sprintf("UPDATE `%s`.`%s` SET `performed_at` = NOW() WHERE `trigger_table` = ? AND `change_table` = ?", app.DB.Config.Schema, app.Config.HistoryTable),
 				"params": []any{
 					historyRecordRow.TriggerTable,
 					historyRecordRow.ChangeTable,
@@ -409,7 +403,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 		}
 
 		columns := ""
-		rows, err := conn.Query(`SELECT
+		rows, err := app.DB.Conn.Query(`SELECT
 				COLUMN_NAME,
 				COLUMN_TYPE
 			FROM information_schema.COLUMNS
@@ -479,7 +473,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 
 	// we have two preparatory queries by default
 	if len(SQLStatements) > 2 {
-		db.WithTransaction(conn, func(tx *sql.Tx) error {
+		db.WithTransaction(app.DB.Conn, func(tx *sql.Tx) error {
 			for _, SQLStatement := range SQLStatements {
 				query := SQLStatement["query"].(string)
 				params, hasParams := SQLStatement["params"].([]any)
@@ -512,22 +506,16 @@ func (d MySQLDriver) Purge(app config.App) error {
 		},
 	}
 
-	conn, err := d.Connect(app.Config.DB)
-
-	if err != nil {
-		return err
-	}
-
 	historyTableSQL := stub.Read("mysql-create-history-table", map[string]string{
-		"<SCHEMA>": app.Config.DB.Schema,
+		"<SCHEMA>": app.DB.Config.Schema,
 		"<TABLE>":  app.Config.HistoryTable,
 	})
 
-	if err := db.CreateHistoryTable(conn, historyTableSQL); err != nil {
+	if err := db.CreateHistoryTable(app.DB.Conn, historyTableSQL); err != nil {
 		return err
 	}
 
-	rows, err := conn.Query(fmt.Sprintf("SELECT `trigger_table`, `change_table`, `insert_trigger`, `update_trigger`, `delete_trigger` FROM `%s`", app.Config.HistoryTable))
+	rows, err := app.DB.Conn.Query(fmt.Sprintf("SELECT `trigger_table`, `change_table`, `insert_trigger`, `update_trigger`, `delete_trigger` FROM `%s`", app.Config.HistoryTable))
 	defer rows.Close()
 
 	if err != nil {
@@ -571,11 +559,11 @@ func (d MySQLDriver) Purge(app config.App) error {
 	// drop history table
 	SQLStatements = append(SQLStatements, map[string]any{
 		"query": stub.Read("mysql-drop-table", map[string]string{
-			"<TABLE>": fmt.Sprintf("%s.%s", app.Config.DB.Schema, app.Config.HistoryTable),
+			"<TABLE>": fmt.Sprintf("%s.%s", app.DB.Config.Schema, app.Config.HistoryTable),
 		}),
 	})
 
-	db.WithTransaction(conn, func(tx *sql.Tx) error {
+	db.WithTransaction(app.DB.Conn, func(tx *sql.Tx) error {
 		var query string
 		var err error
 
