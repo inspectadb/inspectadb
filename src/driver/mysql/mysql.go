@@ -190,11 +190,11 @@ func (d MySQLDriver) Audit(app config.App) error {
 	}
 
 	for _, triggerTable := range triggerTables {
-		createAuditTable := false
+		createChangeTable := false
 		changeTable := ""
-		insertTrigger := fmt.Sprintf("%s.%s", app.DB.Config.Schema, util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", triggerTable, "ins", "trgr", util.UUIDWithoutHyphens()))
-		updateTrigger := fmt.Sprintf("%s.%s", app.DB.Config.Schema, util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", triggerTable, "upd", "trgr", util.UUIDWithoutHyphens()))
-		deleteTrigger := fmt.Sprintf("%s.%s", app.DB.Config.Schema, util.BuildIdentifierName(d.GetIdentifierMaxLength(), "inspecta", triggerTable, "del", "trgr", util.UUIDWithoutHyphens()))
+		insertTrigger := fmt.Sprintf("%s.%s", app.DB.Config.Schema, util.BuildTriggerName(triggerTable, "i", d.GetIdentifierMaxLength()))
+		updateTrigger := fmt.Sprintf("%s.%s", app.DB.Config.Schema, util.BuildTriggerName(triggerTable, "u", d.GetIdentifierMaxLength()))
+		deleteTrigger := fmt.Sprintf("%s.%s", app.DB.Config.Schema, util.BuildTriggerName(triggerTable, "d", d.GetIdentifierMaxLength()))
 		triggerOptions := []map[string]any{}
 
 		historyRecordRow := historyRecord{}
@@ -213,7 +213,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 
 		// hasn't been audited
 		if errors.Is(err, sql.ErrNoRows) {
-			createAuditTable = true
+			createChangeTable = true
 			changeTable = fmt.Sprintf("%s.%s", changeTableSchema, util.BuildIdentifierName(d.GetIdentifierMaxLength(), app.Config.ChangeTablePrefix, triggerTable, app.Config.ChangeTableSuffix))
 
 			SQLStatements = append(SQLStatements, map[string]any{
@@ -255,7 +255,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 		} else {
 			// table has been audited
 			changeTable = historyRecordRow.ChangeTable
-			createAuditTable = false
+			createChangeTable = false
 
 			// format: schema.table
 			triggerTableSplit := strings.Split(historyRecordRow.TriggerTable, ".")
@@ -435,7 +435,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 		deleteStatement := fmt.Sprintf("INSERT INTO %s VALUES (NULL, '%s', CURRENT_USER(), NOW(), %s);", changeTable, "DELETE", strings.ReplaceAll(columns, "<KEYWORD>", "old"))
 
 		for _, triggerOption := range triggerOptions {
-			if !createAuditTable {
+			if !createChangeTable {
 				SQLStatements = append(SQLStatements, map[string]any{
 					"query": stub.Read("mysql-drop-trigger", map[string]string{
 						"<SCHEMA>":  changeTableSchema,

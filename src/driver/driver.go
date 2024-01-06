@@ -46,7 +46,7 @@ func Get(name string) (Driver, error) {
 	d, ok := drivers[name]
 
 	if !ok {
-		return nil, fmt.Errorf("%w: %s", errs.UnknownDriverRequested, name)
+		return nil, fmt.Errorf("%w: %s (get driver)", errs.UnknownDriverRequested, name)
 	}
 
 	return d, nil

@@ -4,9 +4,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/inspectadb/inspectadb/src/config"
 	"github.com/inspectadb/inspectadb/src/driver"
 	"github.com/inspectadb/inspectadb/src/errs"
+	_ "github.com/lib/pq"
 	"log"
 )
 

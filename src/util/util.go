@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"github.com/google/uuid"
 	"strings"
 )
@@ -41,4 +42,18 @@ func BuildIdentifierName(maxLength int, ids ...string) string {
 	}
 
 	return id
+}
+
+func BuildChangeTableName(prefix string) {
+
+}
+
+func BuildTriggerName(triggerTable string, action string, maxLength int) string {
+	name := fmt.Sprintf("inspecta_%s_%s_trgr_%s", triggerTable, action, UUIDWithoutHyphens())
+	return name[:min(len(name), maxLength)]
+}
+
+func BuildFunctionName(triggerTable, action string, maxLength int) string {
+	name := fmt.Sprintf("inspecta_%s_%s_fn_%s", triggerTable, action, UUIDWithoutHyphens())
+	return name[:min(len(name), maxLength)]
 }

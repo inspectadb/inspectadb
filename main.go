@@ -5,6 +5,7 @@ import (
 	"github.com/inspectadb/inspectadb/src/cmd"
 	"github.com/inspectadb/inspectadb/src/driver"
 	"github.com/inspectadb/inspectadb/src/driver/mysql"
+	"github.com/inspectadb/inspectadb/src/driver/postgresql"
 	"github.com/inspectadb/inspectadb/src/stub"
 	"log"
 	"os"
@@ -18,6 +19,7 @@ func init() {
 
 	driver.Register("mysql", &mysql.MySQLDriver{})
 	driver.Register("mariadb", &mysql.MySQLDriver{})
+	driver.Register("postgresql", &postgresql.PostgreSQL{})
 }
 
 func main() {
