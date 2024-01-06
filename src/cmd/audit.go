@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/inspectadb/inspectadb/src/config"
+	"github.com/inspectadb/inspectadb/src/db"
 	"github.com/inspectadb/inspectadb/src/driver"
 	"github.com/inspectadb/inspectadb/src/errs"
 	"github.com/inspectadb/inspectadb/src/lang"
@@ -16,15 +17,17 @@ var auditCmd = &cobra.Command{
 	Use:   "audit",
 	Short: "Setup change data capture.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		app, err := config.Load(configPath)
+		var (
+			app config.App
+			err error
+			d   driver.Driver
+		)
 
-		if err != nil {
+		if app, err = config.Load(configPath); err != nil {
 			return err
 		}
 
-		d, err := driver.Get(app.Config.DB.Driver)
-
-		if err != nil {
+		if d, err = driver.Get(app.DB.Config.Driver); err != nil {
 			return err
 		}
 
@@ -32,10 +35,17 @@ var auditCmd = &cobra.Command{
 			return errs.FailedToVerifyLicense
 		}
 
-		profile := profiler.New()
-		err = d.Audit(app)
+		if err = db.Connect(d, &app); err != nil {
+			return err
+		}
 
-		if err != nil {
+		profile := profiler.New()
+
+		if err := db.CreateHistoryTable(app.DB.Conn, d.GetCreateHistoryTableSQL(app)); err != nil {
+			return err
+		}
+
+		if err = d.Audit(app); err != nil {
 			return err
 		}
 
@@ -44,11 +54,11 @@ var auditCmd = &cobra.Command{
 		log.Printf(lang.AuditCompleted, math.Round(profile.Delta.Seconds()*100)/100)
 
 		if app.Config.Telemetry {
-			version, _ := d.GetServerVersion(app.Config.DB)
+			version, _ := db.GetServerVersion(app.DB.Conn, d.GetServerVersionSQL())
 
 			telemetry.NewSignal(
 				"audit",
-				app.Config.DB.Driver,
+				app.DB.Config.Driver,
 				version,
 				map[string]any{
 					"start":   profile.StartedAt.Unix(),

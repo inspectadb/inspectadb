@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/inspectadb/inspectadb/src/config"
+	"github.com/inspectadb/inspectadb/src/driver"
 	"github.com/inspectadb/inspectadb/src/errs"
 	"log"
 )
@@ -19,7 +21,37 @@ type InformationSchemaColumn struct {
 
 type txCallback func(tx *sql.Tx) error
 
-func WithTransaction(conn *sql.DB, fn txCallback) {
+func Connect(driver driver.Driver, app *config.App) error {
+	dbConfig := app.DB.Config
+	driverMap := map[string]string{
+		"mysql":      "mysql",
+		"mariadb":    "mysql",
+		"postgresql": "postgres",
+		"postgres":   "postgres",
+		"pgsql":      "postgres",
+	}
+	driverName, hasDriver := driverMap[dbConfig.Driver]
+
+	if !hasDriver {
+		return fmt.Errorf("connect: %w", errs.UnknownDriverRequested)
+	}
+
+	conn, err := sql.Open(driverName, driver.BuildDSN(dbConfig))
+
+	if err != nil {
+		return fmt.Errorf("%w: %v (%s)", errs.FailedToOpenDB, err, driverName)
+	}
+
+	if err := conn.Ping(); err != nil {
+		return fmt.Errorf("%w: %v (%s)", errs.FailedToConnectToDB, err, driverName)
+	}
+
+	app.DB.Conn = conn
+
+	return nil
+}
+
+func Transaction(conn *sql.DB, fn txCallback) {
 	tx, err := conn.Begin()
 
 	if err != nil {
@@ -68,4 +100,14 @@ func CreateHistoryTable(conn *sql.DB, SQL string) error {
 	}
 
 	return nil
+}
+
+func GetServerVersion(conn *sql.DB, SQL string) (string, error) {
+	var version string
+
+	if err := conn.QueryRow(SQL).Scan(&version); err != nil {
+		return "", err
+	}
+
+	return version, nil
 }
