@@ -4,6 +4,7 @@ scripts/
 stubs/
 testdata/
 docker/
+wiki/
 
 *.exe
 *.test
