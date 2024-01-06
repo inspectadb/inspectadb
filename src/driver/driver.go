@@ -9,11 +9,12 @@ import (
 
 type (
 	Driver interface {
-		VerifyLicense(app config.App) bool
-		WrapIdentifier(identifier string) string
 		GetIdentifierMaxLength() int
+		WrapIdentifier(identifier string) string
 		DebugQuery(SQL string, params []any)
 		BuildPlaceholders(totalNoOfPlaceholders int, startFrom int) string
+		BuildDSN(dbConfig config.DBConfig) string
+		VerifyLicense(app config.App) bool
 		GetServerVersionSQL() string
 		GetHistoryTableSQL(app config.App) string
 		// GetColumnsToSyncSQL
@@ -24,7 +25,6 @@ type (
 		// between the original and audit table
 		// excluding base audit columns
 		GetColumnsToSyncSQL() string
-		BuildDSN(dbConfig config.DBConfig) string
 		Audit(app config.App) error
 		Purge(app config.App) error
 	}

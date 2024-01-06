@@ -37,6 +37,31 @@ func (d MySQLDriver) WrapIdentifier(identifier string) string {
 	return "`" + identifier + "`"
 }
 
+func (d MySQLDriver) DebugQuery(SQL string, params []any) {
+	log.Println(fmt.Sprintf(strings.ReplaceAll(SQL, "?", `"%v"`), params...))
+}
+
+func (d MySQLDriver) BuildPlaceholders(totalNoOfPlaceholders int, startFrom int) string {
+	return strings.Repeat(", ?", totalNoOfPlaceholders)
+}
+
+func (d MySQLDriver) BuildDSN(dbConfig config.DBConfig) string {
+	cfg := mysqlDriver.Config{
+		User:                 dbConfig.User,
+		Passwd:               dbConfig.Password,
+		Net:                  "tcp",
+		Addr:                 fmt.Sprintf("%s:%d", dbConfig.Host, dbConfig.Port),
+		DBName:               dbConfig.Schema,
+		AllowNativePasswords: true,
+	}
+
+	return cfg.FormatDSN()
+}
+
+func (d MySQLDriver) VerifyLicense(app config.App) bool {
+	return true
+}
+
 func (d MySQLDriver) GetServerVersionSQL() string {
 	return "SELECT @@version;"
 }
@@ -45,14 +70,6 @@ func (d MySQLDriver) GetHistoryTableSQL(app config.App) string {
 	return stub.Read("mysql-create-history-table", map[string]string{
 		"<TABLE>": fmt.Sprintf("%s.%s", app.DB.Config.Schema, app.Config.HistoryTable),
 	})
-}
-
-func (d MySQLDriver) VerifyLicense(app config.App) bool {
-	return true
-}
-
-func (d MySQLDriver) DebugQuery(SQL string, params []any) {
-	log.Println(fmt.Sprintf(strings.ReplaceAll(SQL, "?", `"%v"`), params...))
 }
 
 // GetColumnsToSyncSQL
@@ -136,23 +153,6 @@ func (d MySQLDriver) GetColumnsToSyncSQL() string {
 					A.ORDINAL_POSITION != B.ORDINAL_POSITION - 4
 				)
 			ORDER BY ORDINAL_POSITION ASC;`
-}
-
-func (d MySQLDriver) BuildPlaceholders(totalNoOfPlaceholders int, startFrom int) string {
-	return strings.Repeat(", ?", totalNoOfPlaceholders)
-}
-
-func (d MySQLDriver) BuildDSN(dbConfig config.DBConfig) string {
-	cfg := mysqlDriver.Config{
-		User:                 dbConfig.User,
-		Passwd:               dbConfig.Password,
-		Net:                  "tcp",
-		Addr:                 fmt.Sprintf("%s:%d", dbConfig.Host, dbConfig.Port),
-		DBName:               dbConfig.Schema,
-		AllowNativePasswords: true,
-	}
-
-	return cfg.FormatDSN()
 }
 
 func (d MySQLDriver) Audit(app config.App) error {
