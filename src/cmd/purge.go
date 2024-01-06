@@ -41,7 +41,7 @@ var purgeCmd = &cobra.Command{
 
 		profile := profiler.New()
 
-		if err := db.CreateHistoryTable(app.DB.Conn, d.GetHistoryTableSQL(app)); err != nil {
+		if err := db.CreateHistoryTable(app.DB.Conn, d.GetCreateHistoryTableSQL(app)); err != nil {
 			return err
 		}
 

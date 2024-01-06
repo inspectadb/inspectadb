@@ -66,7 +66,7 @@ func (d MySQLDriver) GetServerVersionSQL() string {
 	return "SELECT @@version;"
 }
 
-func (d MySQLDriver) GetHistoryTableSQL(app config.App) string {
+func (d MySQLDriver) GetCreateHistoryTableSQL(app config.App) string {
 	return stub.Read("mysql-create-history-table", map[string]string{
 		"<TABLE>": fmt.Sprintf("%s.%s", app.DB.Config.Schema, app.Config.HistoryTable),
 	})

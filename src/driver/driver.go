@@ -16,7 +16,7 @@ type (
 		BuildDSN(dbConfig config.DBConfig) string
 		VerifyLicense(app config.App) bool
 		GetServerVersionSQL() string
-		GetHistoryTableSQL(app config.App) string
+		GetCreateHistoryTableSQL(app config.App) string
 		// GetColumnsToSyncSQL
 		// Get columns that need to be:
 		// 	- added
