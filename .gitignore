@@ -1,6 +1,7 @@
 .idea/
 bin/
 scripts/
+stubs/
 testdata/
 docker/
 
