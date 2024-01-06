@@ -557,8 +557,10 @@ func (d MySQLDriver) Purge(app config.App) error {
 	})
 
 	db.Transaction(app.DB.Conn, func(tx *sql.Tx) error {
-		var query string
-		var err error
+		var (
+			query string
+			err   error
+		)
 
 		for _, SQLStatement := range SQLStatements {
 			query = SQLStatement["query"].(string)
