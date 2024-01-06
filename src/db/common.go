@@ -39,11 +39,11 @@ func Connect(driver driver.Driver, app *config.App) error {
 	conn, err := sql.Open(driverName, driver.BuildDSN(dbConfig))
 
 	if err != nil {
-		return errors.Join(errors.New("failed to initialize db driver 'mysql'"), err)
+		return fmt.Errorf("%w: %v (%s)", errs.FailedToOpenDB, err, driverName)
 	}
 
 	if err := conn.Ping(); err != nil {
-		return errors.Join(errors.New("failed to connect to db"), err)
+		return fmt.Errorf("%w: %v (%s)", errs.FailedToConnectToDB, err, driverName)
 	}
 
 	app.DB.Conn = conn
