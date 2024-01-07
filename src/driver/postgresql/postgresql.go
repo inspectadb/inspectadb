@@ -9,7 +9,6 @@ import (
 	"github.com/inspectadb/inspectadb/src/errs"
 	"github.com/inspectadb/inspectadb/src/stub"
 	"github.com/inspectadb/inspectadb/src/util"
-	"log"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -105,7 +104,6 @@ func (d PostgreSQL) Audit(app config.App) error {
 		changeTableSchema = app.Config.AlternateSchema
 	}
 
-	// TODO: Once we have entry, amend this query
 	getTablesSQL := `SELECT
 					TABLE_NAME
 				FROM INFORMATION_SCHEMA.TABLES
@@ -113,7 +111,7 @@ func (d PostgreSQL) Audit(app config.App) error {
 					TABLE_SCHEMA = $1 AND
 					TABLE_TYPE = 'BASE TABLE' AND
 					TABLE_NAME NOT IN ($2<EXCLUDE>) AND
-					TABLE_NAME NOT IN (SELECT change_table FROM <SCHEMA>.<TABLE>);`
+					TABLE_NAME NOT IN (SELECT SPLIT_PART(change_table, '.', 2) FROM <SCHEMA>.<TABLE>);`
 
 	if len(app.Config.Exclude) >= 1 {
 		excludePlaceholders := d.BuildPlaceholders(len(app.Config.Exclude), 3)
@@ -144,7 +142,7 @@ func (d PostgreSQL) Audit(app config.App) error {
 
 		historyRecordRow := historyRecord{}
 		err := app.DB.Conn.QueryRow(
-			`SELECT trigger_table, change_table, insert_trigger, update_trigger, delete_trigger, insert_function, update_function, delete_function FROM "`+app.DB.Config.Schema+`"."`+app.Config.HistoryTable+`" WHERE trigger_table = $1`, triggerTable).Scan(
+			`SELECT trigger_table, change_table, insert_trigger, update_trigger, delete_trigger, insert_function, update_function, delete_function FROM "`+app.DB.Config.Schema+`"."`+app.Config.HistoryTable+`" WHERE trigger_table = $1`, fmt.Sprintf("%s.%s", app.DB.Config.Schema, triggerTable)).Scan(
 			&historyRecordRow.TriggerTable,
 			&historyRecordRow.ChangeTable,
 			&historyRecordRow.InsertTrigger,
@@ -158,10 +156,11 @@ func (d PostgreSQL) Audit(app config.App) error {
 		if !errors.Is(err, sql.ErrNoRows) && err != nil {
 			return fmt.Errorf("%w: %v", errs.FailedToGetHistoryRecord, err)
 		}
+
 		// hasn't been audited
 		if errors.Is(err, sql.ErrNoRows) {
 			createChangeTable = true
-			changeTable = fmt.Sprintf("%s.%s", changeTableSchema, util.BuildIdentifierName(d.GetIdentifierMaxLength(), app.Config.ChangeTablePrefix, triggerTable, app.Config.ChangeTableSuffix))
+			changeTable = fmt.Sprintf("%s.%s", changeTableSchema, util.BuildChangeTableName(app.Config.ChangeTablePrefix, triggerTable, app.Config.ChangeTableSuffix, d.GetIdentifierMaxLength()))
 
 			SQLStatements = append(SQLStatements, map[string]any{
 				"query": stub.Read("pgsql-create-change-table", map[string]string{
@@ -174,57 +173,79 @@ func (d PostgreSQL) Audit(app config.App) error {
 				}),
 			})
 
+			SQLStatements = append(SQLStatements, map[string]any{
+				"query": fmt.Sprintf(`INSERT INTO "%s"."%s" ("trigger_table", "change_table", "insert_trigger", "update_trigger", "delete_trigger", "insert_function", "update_function", "delete_function", "user") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, current_user)`, app.DB.Config.Schema, app.Config.HistoryTable),
+				"params": []any{
+					fmt.Sprintf("%s.%s", triggerTableSchema, triggerTable),
+					changeTable,
+					insertTrigger,
+					updateTrigger,
+					deleteTrigger,
+					insertFunction,
+					updateFunction,
+					deleteFunction,
+				},
+			})
+
 			triggerOptions = []map[string]any{
 				{
-					"trigger": insertTrigger,
-					"action":  "INSERT",
+					"trigger":  insertTrigger,
+					"function": insertFunction,
+					"action":   "INSERT",
 				},
 				{
-					"trigger": updateTrigger,
-					"action":  "UPDATE",
+					"trigger":  updateTrigger,
+					"function": updateFunction,
+					"action":   "UPDATE",
 				},
 				{
-					"trigger": deleteTrigger,
-					"action":  "DELETE",
+					"trigger":  deleteTrigger,
+					"function": deleteFunction,
+					"action":   "DELETE",
 				},
 			}
 		} else {
+			// schema.table
+			createChangeTable = false
+			changeTable = historyRecordRow.ChangeTable
+			SQLStatements = append(SQLStatements, map[string]any{
+				"query": fmt.Sprintf(`UPDATE "%s"."%s" SET "performed_at" = NOW() WHERE "trigger_table" = $1 AND "change_table" = $2`, app.DB.Config.Schema, app.Config.HistoryTable),
+				"params": []any{
+					historyRecordRow.TriggerTable,
+					historyRecordRow.ChangeTable,
+				},
+			})
 
-		}
-
-		// schema.table
-		SQLStatements = append(SQLStatements, map[string]any{
-			"query": fmt.Sprintf("UPDATE `%s`.`%s` SET `performed_at` = NOW() WHERE `trigger_table` = ? AND `change_table` = ?", app.DB.Config.Schema, app.Config.HistoryTable),
-			"params": []any{
-				historyRecordRow.TriggerTable,
-				historyRecordRow.ChangeTable,
-			},
-		})
-
-		triggerOptions = []map[string]any{
-			{
-				"trigger": historyRecordRow.InsertTrigger,
-				"action":  "INSERT",
-			},
-			{
-				"trigger": historyRecordRow.UpdateTrigger,
-				"action":  "UPDATE",
-			},
-			{
-				"trigger": historyRecordRow.DeleteTrigger,
-				"action":  "DELETE",
-			},
+			triggerOptions = []map[string]any{
+				{
+					"trigger":  historyRecordRow.InsertTrigger,
+					"function": historyRecordRow.InsertFunction,
+					"action":   "INSERT",
+				},
+				{
+					"trigger":  historyRecordRow.UpdateTrigger,
+					"function": historyRecordRow.UpdateFunction,
+					"action":   "UPDATE",
+				},
+				{
+					"trigger":  historyRecordRow.DeleteTrigger,
+					"function": historyRecordRow.DeleteFunction,
+					"action":   "DELETE",
+				},
+			}
 		}
 
 		columns := ""
 		rows, err := app.DB.Conn.Query(`SELECT
-				COLUMN_NAME,
-				COLUMN_TYPE
-			FROM information_schema.COLUMNS
-			WHERE
-				TABLE_SCHEMA = ? AND
-				TABLE_NAME = ?
-			ORDER BY ORDINAL_POSITION ASC;`, triggerTableSchema, triggerTable)
+			"attname" AS COLUMN_NAME,
+			format_type(pga.atttypid, pga.atttypmod) AS COLUMN_TYPE
+		FROM pg_attribute pga
+			INNER JOIN pg_class pgc ON pgc.oid = pga.attrelid AND pgc.relname = $1
+			INNER JOIN pg_namespace pgn ON pgn.oid = pgc.relnamespace AND pgn.nspname = $2
+		WHERE
+			pga.attnum > 0 AND
+			NOT pga.attisdropped
+		ORDER BY pga.attnum ASC;`, triggerTable, triggerTableSchema)
 
 		if err != nil {
 			return fmt.Errorf("%w: %s. %v", errs.FailedToGetTriggerTableColumns, triggerTable, err)
@@ -250,16 +271,22 @@ func (d PostgreSQL) Audit(app config.App) error {
 			}
 		}
 
-		insertStatement := fmt.Sprintf("INSERT INTO %s VALUES (NULL, '%s', CURRENT_USER(), NOW(), %s);", changeTable, "INSERT", strings.ReplaceAll(columns, "<KEYWORD>", "new"))
-		updateStatement := fmt.Sprintf("INSERT INTO %s VALUES (NULL, '%s', CURRENT_USER(), NOW(), %s);", changeTable, "UPDATE", strings.ReplaceAll(columns, "<KEYWORD>", "new"))
-		deleteStatement := fmt.Sprintf("INSERT INTO %s VALUES (NULL, '%s', CURRENT_USER(), NOW(), %s);", changeTable, "DELETE", strings.ReplaceAll(columns, "<KEYWORD>", "old"))
+		insertStatement := fmt.Sprintf("INSERT INTO %s VALUES (DEFAULT, '%s', current_user, now(), %s);", changeTable, "INSERT", strings.ReplaceAll(columns, "<KEYWORD>", "new"))
+		updateStatement := fmt.Sprintf("INSERT INTO %s VALUES (DEFAULT, '%s', current_user, now(), %s);", changeTable, "UPDATE", strings.ReplaceAll(columns, "<KEYWORD>", "new"))
+		deleteStatement := fmt.Sprintf("INSERT INTO %s VALUES (DEFAULT, '%s', current_user, now(), %s);", changeTable, "DELETE", strings.ReplaceAll(columns, "<KEYWORD>", "old"))
 
 		for _, triggerOption := range triggerOptions {
 			if !createChangeTable {
 				SQLStatements = append(SQLStatements, map[string]any{
-					"query": stub.Read("mysql-drop-trigger", map[string]string{
-						"<SCHEMA>":  changeTableSchema,
+					"query": stub.Read("pgsql-drop-trigger", map[string]string{
 						"<TRIGGER>": triggerOption["trigger"].(string),
+						"<TABLE>":   fmt.Sprintf("%s.%s", app.DB.Config.Schema, triggerTable),
+					}),
+				})
+
+				SQLStatements = append(SQLStatements, map[string]any{
+					"query": stub.Read("pgsql-drop-function", map[string]string{
+						"<FUNCTION>": triggerOption["function"].(string),
 					}),
 				})
 			}
@@ -275,59 +302,21 @@ func (d PostgreSQL) Audit(app config.App) error {
 			}
 
 			SQLStatements = append(SQLStatements, map[string]any{
-				"query": stub.Read("mysql-create-trigger", map[string]string{
-					"<TRIGGER>":   fmt.Sprintf("%s", trigger),
-					"<ACTION>":    action,
-					"<TABLE>":     fmt.Sprintf("%s.%s", triggerTableSchema, triggerTable),
+				"query": stub.Read("pgsql-create-function", map[string]string{
+					"<FUNCTION>":  triggerOption["function"].(string),
 					"<STATEMENT>": statement,
 				}),
 			})
+
+			SQLStatements = append(SQLStatements, map[string]any{
+				"query": stub.Read("pgsql-create-trigger", map[string]string{
+					"<TRIGGER>":  fmt.Sprintf("%s", trigger),
+					"<ACTION>":   action,
+					"<TABLE>":    fmt.Sprintf("%s.%s", triggerTableSchema, triggerTable),
+					"<FUNCTION>": triggerOption["function"].(string),
+				}),
+			})
 		}
-
-		//newColumns, oldColumns := "", ""
-		//
-		//rows, err := conn.Query(`SELECT
-		//	"attname" AS COLUMN_NAME,
-		//	format_type(pga.atttypid, pga.atttypmod) AS COLUMN_TYPE
-		//FROM pg_attribute pga
-		//	INNER JOIN pg_class pgc ON pgc.oid = pga.attrelid AND pgc.relname = $1
-		//	INNER JOIN pg_namespace pgn ON pgn.oid = pgc.relnamespace AND pgn.nspname = $2
-		//WHERE
-		//	pga.attnum > 0 AND
-		//	NOT pga.attisdropped
-		//ORDER BY pga.attnum ASC;`, table, app.Config.DB.Schema)
-		//
-		//if err != nil {
-		//	return errors.Join(errors.New("failed to get columns for '"+table+"'"), err)
-		//}
-		//
-		//notLast := rows.Next()
-		//
-		//for notLast {
-		//	var column db.InformationSchemaColumn
-		//
-		//	err = rows.Scan(&column.Name, &column.Type)
-		//
-		//	if err != nil {
-		//		return errors.Join(errors.New("failed to scan column information"), err)
-		//	}
-		//
-		//	notLast = rows.Next()
-		//
-		//	if notLast {
-		//		newColumns += fmt.Sprintf("%s.%s, ", "new", d.WrapIdentifier(column.Name))
-		//		oldColumns += fmt.Sprintf("%s.%s, ", "old", d.WrapIdentifier(column.Name))
-		//	} else {
-		//		newColumns += fmt.Sprintf("%s.%s", "new", d.WrapIdentifier(column.Name))
-		//		oldColumns += fmt.Sprintf("%s.%s", "old", d.WrapIdentifier(column.Name))
-		//	}
-		//}
-		//
-		insertStatement := fmt.Sprintf(`INSERT INTO "%s"."%s" VALUES (DEFAULT, '%s', current_user(), now(), %s);`, app.Config.DB.Schema, auditTable, "INSERT", newColumns)
-		updateStatement := fmt.Sprintf(`INSERT INTO "%s"."%s" VALUES (DEFAULT, '%s', current_user(), now(), %s);`, app.Config.DB.Schema, auditTable, "UPDATE", newColumns)
-		deleteStatement := fmt.Sprintf(`INSERT INTO "%s"."%s" VALUES (DEFAULT, '%s', current_user(), now(), %s);`, app.Config.DB.Schema, auditTable, "DELETE", oldColumns)
-
-		log.Println(triggerTable)
 	}
 
 	if len(SQLStatements) > 0 {
@@ -355,6 +344,103 @@ func (d PostgreSQL) Audit(app config.App) error {
 }
 
 func (d PostgreSQL) Purge(app config.App) error {
-	//TODO implement me
-	panic("implement me")
+	SQLStatements := []map[string]any{}
+
+	rows, err := app.DB.Conn.Query(fmt.Sprintf(`SELECT "trigger_table", "change_table", "insert_trigger", "update_trigger", "delete_trigger", "insert_function", "update_function", "delete_function" FROM "%s"."%s"`, app.DB.Config.Schema, app.Config.HistoryTable))
+	defer rows.Close()
+
+	if err != nil {
+		return fmt.Errorf("%w: %v", errs.FailedToGetHistoryRecord, err)
+	}
+
+	for rows.Next() {
+		historyRecordRow := historyRecord{}
+
+		_ = rows.Scan(&historyRecordRow.TriggerTable, &historyRecordRow.ChangeTable, &historyRecordRow.InsertTrigger, &historyRecordRow.UpdateTrigger, &historyRecordRow.DeleteTrigger, &historyRecordRow.InsertFunction, &historyRecordRow.UpdateFunction, &historyRecordRow.DeleteFunction)
+
+		// drop change table
+		SQLStatements = append(SQLStatements, map[string]any{
+			"query": stub.Read("pgsql-drop-table", map[string]string{
+				"<TABLE>": historyRecordRow.ChangeTable,
+			}),
+		})
+
+		// insert trigger
+		SQLStatements = append(SQLStatements, map[string]any{
+			"query": stub.Read("pgsql-drop-trigger", map[string]string{
+				"<TRIGGER>": historyRecordRow.InsertTrigger,
+				"<TABLE>":   historyRecordRow.TriggerTable,
+			}),
+		})
+
+		// insert function
+		SQLStatements = append(SQLStatements, map[string]any{
+			"query": stub.Read("pgsql-drop-function", map[string]string{
+				"<FUNCTION>": historyRecordRow.InsertFunction,
+			}),
+		})
+
+		// update trigger
+		SQLStatements = append(SQLStatements, map[string]any{
+			"query": stub.Read("pgsql-drop-trigger", map[string]string{
+				"<TRIGGER>": historyRecordRow.UpdateTrigger,
+				"<TABLE>":   historyRecordRow.TriggerTable,
+			}),
+		})
+
+		// update function
+		SQLStatements = append(SQLStatements, map[string]any{
+			"query": stub.Read("pgsql-drop-function", map[string]string{
+				"<FUNCTION>": historyRecordRow.UpdateFunction,
+			}),
+		})
+
+		// delete trigger
+		SQLStatements = append(SQLStatements, map[string]any{
+			"query": stub.Read("pgsql-drop-trigger", map[string]string{
+				"<TRIGGER>": historyRecordRow.DeleteTrigger,
+				"<TABLE>":   historyRecordRow.TriggerTable,
+			}),
+		})
+
+		// delete function
+		SQLStatements = append(SQLStatements, map[string]any{
+			"query": stub.Read("pgsql-drop-function", map[string]string{
+				"<FUNCTION>": historyRecordRow.DeleteFunction,
+			}),
+		})
+	}
+
+	// drop history table
+	SQLStatements = append(SQLStatements, map[string]any{
+		"query": stub.Read("pgsql-drop-table", map[string]string{
+			"<TABLE>": fmt.Sprintf("%s.%s", app.DB.Config.Schema, app.Config.HistoryTable),
+		}),
+	})
+
+	db.Transaction(app.DB.Conn, func(tx *sql.Tx) error {
+		var (
+			query string
+			err   error
+		)
+
+		for _, SQLStatement := range SQLStatements {
+			query = SQLStatement["query"].(string)
+			params, hasParams := SQLStatement["params"].([]any)
+
+			if hasParams {
+				_, err = tx.Exec(query, params...)
+			} else {
+				_, err = tx.Exec(query)
+			}
+
+			if err != nil {
+				return fmt.Errorf("%w: sql: %s. params: %v", err, query, params)
+			}
+		}
+
+		return nil
+	})
+
+	return nil
 }

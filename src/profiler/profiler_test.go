@@ -1,6 +1,7 @@
 package profiler
 
 import (
+	"github.com/inspectadb/inspectadb/src/errs"
 	"github.com/magiconair/properties/assert"
 	"testing"
 	"time"
@@ -17,7 +18,7 @@ func TestProfile_Start(t *testing.T) {
 func TestProfile_End(t *testing.T) {
 	profile := profile{}
 
-	assert.Panic(t, profile.End, "Attempting to end an unstarted profile")
+	assert.Panic(t, profile.End, errs.ProfileAlreadyEnded.Error())
 	assert.Equal(t, profile.EndedAt.IsZero(), true)
 	assert.Equal(t, int(profile.Delta.Seconds()), 0)
 
@@ -32,7 +33,7 @@ func TestProfile_End(t *testing.T) {
 func TestNew(t *testing.T) {
 	profile := New()
 
-	assert.Panic(t, profile.Start, "Attempting to start an already started profile")
+	assert.Panic(t, profile.Start, errs.ProfileAlreadyStarted.Error())
 	assert.Equal(t, profile.StartedAt.IsZero(), false)
 	assert.Equal(t, profile.EndedAt.IsZero(), true)
 	assert.Equal(t, int(profile.Delta.Seconds()), 0)

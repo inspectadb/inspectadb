@@ -58,8 +58,8 @@ var purgeCmd = &cobra.Command{
 
 			telemetry.NewSignal(
 				"purge",
+				app.DB.Config.Driver,
 				version,
-				"",
 				map[string]any{
 					"start":   profile.StartedAt.Unix(),
 					"elapsed": profile.Delta.Nanoseconds(),

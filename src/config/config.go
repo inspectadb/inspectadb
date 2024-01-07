@@ -56,7 +56,7 @@ func parseDSN(dsn string) (DBConfig, error) {
 	port, err := strconv.Atoi(hostAndPort[1])
 
 	if err != nil {
-		return DBConfig{}, errors.Join(errs.InvalidPort, err)
+		return DBConfig{}, errs.InvalidPort
 	}
 
 	dsn = dsn[strings.Index(dsn, "/")+1:]
@@ -92,7 +92,7 @@ func Load(path string) (App, error) {
 	viper.SetTypeByDefaultValue(true)
 	viper.SetConfigType("env")
 	viper.SetDefault("alternate_schema", "")
-	viper.SetDefault("history_table", "inspecta_history")
+	viper.SetDefault("history_table", "inspectadb_history")
 	viper.SetDefault("change_table_prefix", "")
 	viper.SetDefault("change_table_suffix", "audit")
 	viper.SetDefault("change_id_column", "change_id")

@@ -32,28 +32,17 @@ func joinNonEmpty(items []string, sep string) string {
 	return strings.Join(nonEmptyItems, sep)
 }
 
-// BuildIdentifierName
-// TODO: Make sep an arg (?)
-func BuildIdentifierName(maxLength int, ids ...string) string {
-	id := joinNonEmpty(ids, "_")
-
-	if len(id) > maxLength {
-		return id[:maxLength]
-	}
-
-	return id
-}
-
-func BuildChangeTableName(prefix string) {
-
+func BuildChangeTableName(prefix string, triggerTable string, suffix string, maxLength int) string {
+	name := joinNonEmpty([]string{prefix, triggerTable, suffix}, "_")
+	return name[:min(len(name), maxLength)]
 }
 
 func BuildTriggerName(triggerTable string, action string, maxLength int) string {
-	name := fmt.Sprintf("inspecta_%s_%s_trgr_%s", triggerTable, action, UUIDWithoutHyphens())
+	name := fmt.Sprintf("inspectadb_%s_%s_trgr", triggerTable, action)
 	return name[:min(len(name), maxLength)]
 }
 
 func BuildFunctionName(triggerTable, action string, maxLength int) string {
-	name := fmt.Sprintf("inspecta_%s_%s_fn_%s", triggerTable, action, UUIDWithoutHyphens())
+	name := fmt.Sprintf("inspectadb_%s_%s_fn", triggerTable, action)
 	return name[:min(len(name), maxLength)]
 }

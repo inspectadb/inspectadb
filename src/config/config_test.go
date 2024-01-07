@@ -1,18 +1,12 @@
 package config
 
 import (
-	"errors"
+	"github.com/inspectadb/inspectadb/src/errs"
 	"github.com/magiconair/properties/assert"
 	"testing"
 )
 
 func TestParseDSN(t *testing.T) {
-	type testCase struct {
-		name     string
-		dsn      string
-		expected DBConfig
-	}
-
 	t.Run("DSN without database", func(t *testing.T) {
 		dbConfig, _ := parseDSN("mysql://root:password@localhost:3306/myschema")
 
@@ -59,6 +53,6 @@ func TestParseDSN(t *testing.T) {
 		dbConfig, err := parseDSN("pgsql://root:password@localhost:port/db:schema")
 
 		assert.Equal(t, dbConfig, DBConfig{})
-		assert.Equal(t, err, errors.New("failed to load config: failed to parse port"))
+		assert.Equal(t, err, errs.InvalidPort)
 	})
 }

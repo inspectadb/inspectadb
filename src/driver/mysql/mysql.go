@@ -197,6 +197,8 @@ func (d MySQLDriver) Audit(app config.App) error {
 		deleteTrigger := fmt.Sprintf("%s.%s", app.DB.Config.Schema, util.BuildTriggerName(triggerTable, "d", d.GetIdentifierMaxLength()))
 		triggerOptions := []map[string]any{}
 
+		log.Fatalln(changeTable)
+
 		historyRecordRow := historyRecord{}
 		err := app.DB.Conn.QueryRow(
 			"SELECT `trigger_table`, `change_table`, `insert_trigger`, `update_trigger`, `delete_trigger` FROM `"+app.Config.HistoryTable+"` WHERE trigger_table = ?", fmt.Sprintf("%s.%s", app.DB.Config.Schema, triggerTable)).Scan(
@@ -214,7 +216,7 @@ func (d MySQLDriver) Audit(app config.App) error {
 		// hasn't been audited
 		if errors.Is(err, sql.ErrNoRows) {
 			createChangeTable = true
-			changeTable = fmt.Sprintf("%s.%s", changeTableSchema, util.BuildIdentifierName(d.GetIdentifierMaxLength(), app.Config.ChangeTablePrefix, triggerTable, app.Config.ChangeTableSuffix))
+			changeTable = fmt.Sprintf("%s.%s", changeTableSchema, util.BuildChangeTableName(app.Config.ChangeTablePrefix, triggerTable, app.Config.ChangeTableSuffix, d.GetIdentifierMaxLength()))
 
 			SQLStatements = append(SQLStatements, map[string]any{
 				"query": stub.Read("mysql-create-change-table", map[string]string{
@@ -438,7 +440,6 @@ func (d MySQLDriver) Audit(app config.App) error {
 			if !createChangeTable {
 				SQLStatements = append(SQLStatements, map[string]any{
 					"query": stub.Read("mysql-drop-trigger", map[string]string{
-						"<SCHEMA>":  changeTableSchema,
 						"<TRIGGER>": triggerOption["trigger"].(string),
 					}),
 				})
@@ -500,15 +501,7 @@ func (d MySQLDriver) Purge(app config.App) error {
 		},
 	}
 
-	historyTableSQL := stub.Read("mysql-create-history-table", map[string]string{
-		"<TABLE>": fmt.Sprintf("%s.%s", app.DB.Config.Schema, app.Config.HistoryTable),
-	})
-
-	if err := db.CreateHistoryTable(app.DB.Conn, historyTableSQL); err != nil {
-		return err
-	}
-
-	rows, err := app.DB.Conn.Query(fmt.Sprintf("SELECT `trigger_table`, `change_table`, `insert_trigger`, `update_trigger`, `delete_trigger` FROM `%s`", app.Config.HistoryTable))
+	rows, err := app.DB.Conn.Query(fmt.Sprintf("SELECT `trigger_table`, `change_table`, `insert_trigger`, `update_trigger`, `delete_trigger` FROM `%s`.`%s`", app.DB.Config.Schema, app.Config.HistoryTable))
 	defer rows.Close()
 
 	if err != nil {
@@ -516,35 +509,35 @@ func (d MySQLDriver) Purge(app config.App) error {
 	}
 
 	for rows.Next() {
-		historyRecord := historyRecord{}
+		historyRecordRow := historyRecord{}
 
-		_ = rows.Scan(&historyRecord.TriggerTable, &historyRecord.ChangeTable, &historyRecord.InsertTrigger, &historyRecord.UpdateTrigger, &historyRecord.DeleteTrigger)
+		_ = rows.Scan(&historyRecordRow.TriggerTable, &historyRecordRow.ChangeTable, &historyRecordRow.InsertTrigger, &historyRecordRow.UpdateTrigger, &historyRecordRow.DeleteTrigger)
 
 		// drop change table
 		SQLStatements = append(SQLStatements, map[string]any{
 			"query": stub.Read("mysql-drop-table", map[string]string{
-				"<TABLE>": historyRecord.ChangeTable,
+				"<TABLE>": historyRecordRow.ChangeTable,
 			}),
 		})
 
 		// drop insert trigger
 		SQLStatements = append(SQLStatements, map[string]any{
 			"query": stub.Read("mysql-drop-trigger", map[string]string{
-				"<TRIGGER>": historyRecord.InsertTrigger,
+				"<TRIGGER>": historyRecordRow.InsertTrigger,
 			}),
 		})
 
 		// drop update trigger
 		SQLStatements = append(SQLStatements, map[string]any{
 			"query": stub.Read("mysql-drop-trigger", map[string]string{
-				"<TRIGGER>": historyRecord.UpdateTrigger,
+				"<TRIGGER>": historyRecordRow.UpdateTrigger,
 			}),
 		})
 
 		// drop delete trigger
 		SQLStatements = append(SQLStatements, map[string]any{
 			"query": stub.Read("mysql-drop-trigger", map[string]string{
-				"<TRIGGER>": historyRecord.DeleteTrigger,
+				"<TRIGGER>": historyRecordRow.DeleteTrigger,
 			}),
 		})
 	}

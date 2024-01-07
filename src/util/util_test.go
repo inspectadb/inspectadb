@@ -28,19 +28,21 @@ func TestJoinNonEmpty(t *testing.T) {
 	assert.Equal(t, got, want)
 }
 
-func TestBuildIdentifierName(t *testing.T) {
-	t.Run("Is ID generated", func(t *testing.T) {
-		want := "my_id_1"
-		got := BuildIdentifierName(25, "my", "id", "1")
+func TestBuildChangeTableName(t *testing.T) {
+	assert.Equal(t, BuildChangeTableName("prefix", "table", "suffix", 19), "prefix_table_suffix")
 
-		assert.Equal(t, got, want)
+	t.Run("Test truncation", func(t *testing.T) {
+		assert.Equal(t, BuildChangeTableName("prefix", "table", "suffix", 15), "prefix_table_su")
+		assert.Equal(t, len(BuildChangeTableName("prefix", "table", "suffix", 15)), len("prefix_table_su"))
 	})
+}
 
-	t.Run("Is string truncated", func(t *testing.T) {
-		want := "my_id"
-		got := BuildIdentifierName(5, "my", "id", "1")
+func TestBuildTriggerName(t *testing.T) {
+	triggerName := BuildTriggerName("table", "i", 19)
+	assert.Equal(t, len(triggerName) <= 19, true)
+}
 
-		assert.Equal(t, got, want)
-		assert.Equal(t, len(got), len(want))
-	})
+func TestBuildFunctionName(t *testing.T) {
+	funcName := BuildFunctionName("table", "i", 19)
+	assert.Equal(t, len(funcName) <= 19, true)
 }
