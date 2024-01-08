@@ -90,9 +90,79 @@ func (d PostgreSQL) GetCreateHistoryTableSQL(app config.App) string {
 	})
 }
 
+// GetColumnsToAddSQL
+// Params: changeTableSchema, changeTable, tableCatalog (db), triggerTableSchema, triggerTable
+func GetColumnsToAddSQL() string {
+	return `SELECT
+				'ADD' AS ACTION,
+				tt.column_name,
+				tt.data_type,
+				tt.ordinal_position,
+				(
+					SELECT
+						COLUMN_NAME
+					FROM information_schema.columns
+					WHERE
+						table_schema = tt.table_schema AND
+						table_name = tt.table_name AND
+						ordinal_position < tt.ordinal_position
+					ORDER BY ordinal_position DESC
+					LIMIT 1
+				) AS AFTER_COLUMN_NAME
+			FROM information_schema.columns AS tt
+			LEFT JOIN information_schema.columns AS cc ON
+				(cc.table_catalog, cc.table_schema, cc.table_name, tt.column_name) = (tt.table_catalog, $1, $2, cc.column_name)
+			WHERE
+				(tt.table_catalog, tt.table_schema, tt.table_name) = ($3, $4, $5) AND
+				cc.table_name IS NULL`
+}
+
+// GetColumnsToModifySQL
+// Params: changeTableSchema, changeTable, tableCatalog (db), triggerTableSchema, triggerTable
+func GetColumnsToModifySQL() string {
+	return `SELECT
+				'MODIFY' AS ACTION,
+				tt.column_name,
+				tt.data_type,
+				tt.ordinal_position,
+				NULL AS AFTER_COLUMN_NAME
+			FROM information_schema.columns AS tt
+			INNER JOIN information_schema.columns ct ON
+				(ct.table_catalog, ct.table_schema, ct.table_name) = ($1, $2, $3) AND
+				tt.column_name = ct.column_name
+			WHERE
+				(tt.table_catalog, tt.table_schema, tt.table_name) = ($4, $5, $6) AND
+				tt.column_name NOT IN ($7, $8, $9, $10) AND
+				ct.column_name IS NULL;`
+}
+
+// GetColumnsToDropSQL
+// Params: tt_db, tt_schema, tt, ct_db, ct_schema, ct, change_id, change_action, changed_by, changed_at
+func GetColumnsToDropSQL() string {
+	return `SELECT
+				'DROP' AS ACTION,
+				ct.column_name,
+				ct.data_type,
+				ct.ordinal_position,
+				NULL AS AFTER_COLUMN_NAME
+			FROM information_schema.columns AS ct
+			LEFT JOIN information_schema.columns tt ON
+				(tt.table_catalog, tt.table_schema, tt.table_name) = ($1, $2, $3) AND
+				ct.column_name = tt.column_name
+			WHERE
+				(ct.table_catalog, ct.table_schema, ct.table_name) = ($4, $5, $6) AND
+				ct.column_name NOT IN ($7, $8, $9, $10) AND
+				tt.column_name IS NULL;`
+}
+
+// GetColumnsToSyncSQL
+// Params for A: changeTableSchema, changeTable, tableCatalog (db), triggerTableSchema, triggerTable
+// Params for D: change_id, change_action, changed_by, changed_at
+// Params for M: trigger_table, schema, trigger_table, schema, change_table, schema
 func (d PostgreSQL) GetColumnsToSyncSQL() string {
-	//TODO implement me
-	panic("implement me")
+	return `
+			UNION
+			`
 }
 
 func (d PostgreSQL) Audit(app config.App) error {

@@ -24,6 +24,9 @@ type (
 		// 	- deleted
 		// between the original and audit table
 		// excluding base audit columns
+		GetColumnsToAddSQL() string
+		GetColumnsToModifySQL() string
+		GetColumnsToDropSQL() string
 		GetColumnsToSyncSQL() string
 		Audit(app config.App) error
 		Purge(app config.App) error
