@@ -12,9 +12,7 @@ In order to use the Software under this Agreement, you must receive a “License
 
 1.1 General Use. This Agreement grants you a non-exclusive, non-transferable, limited license for personal, non-commercial purposes usage rights for the Software, without the right to grant sublicenses, subject to the terms and conditions in this Agreement. The Software is licensed, not sold.
 
-1.2 Archive Copies. You are entitled to make a reasonable amount of copies of the Software for archival purposes. Each copy must reproduce all copyright and other proprietary rights notices on or in the Software Product.
-
-1.3 Electronic Delivery. All Software and license documentation shall be delivered by electronic means unless otherwise specified on the applicable invoice or at the time of purchase. Software shall be deemed delivered when it is made available for download by you (“Delivery”).
+1.2 Electronic Delivery. All Software and license documentation shall be delivered by electronic means unless otherwise specified on the applicable invoice or at the time of purchase. Software shall be deemed delivered when it is made available for download by you (“Delivery”).
 
 2. Restricted Uses.
 
