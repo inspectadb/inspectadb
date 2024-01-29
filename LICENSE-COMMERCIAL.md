@@ -6,7 +6,7 @@ IMPORTANT: THIS SOFTWARE END-USER LICENSE AGREEMENT ("EULA") IS A LEGAL AGREEMEN
 
 ------------------------------------------------------------------------------
 
-In order to use the Software under this Agreement, you must receive a “License Key” at the time of purchase, in accordance with the scope of use and other terms specified for each type of Software and as set forth in this Section 1 of this Agreement.
+In order to use the Software under this Agreement, you must receive a “License Key” after purchasing a Commercial license, in accordance with the scope of use and other terms specified for each type of Software and as set forth in this Section 1 of this Agreement.
 
 1. License Grant
 
